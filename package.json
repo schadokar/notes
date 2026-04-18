@@ -7,11 +7,15 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "sync": "node scripts/sync-vault.js"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.38.3",
     "astro": "^6.0.1",
     "sharp": "^0.34.2"
+  },
+  "devDependencies": {
+    "gray-matter": "^4.0.3"
   }
 }
