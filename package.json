@@ -13,7 +13,12 @@
   "dependencies": {
     "@astrojs/starlight": "^0.38.3",
     "astro": "^6.0.1",
-    "sharp": "^0.34.2"
+    "astro-expressive-code": "^0.41.7",
+    "astro-mermaid": "^2.0.1",
+    "remark-reading-time": "^2.1.0",
+    "sharp": "^0.34.2",
+    "starlight-sidebar-topics": "^0.7.1",
+    "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
     "gray-matter": "^4.0.3"

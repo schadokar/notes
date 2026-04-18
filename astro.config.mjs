@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 import mermaid from 'astro-mermaid';
 import expressiveCode from 'astro-expressive-code';
 import { readingTimeRemarkPlugin } from './src/lib/readingTime.ts';
-import starlightViewModes from 'starlight-view-modes'
+import starlightViewModes from 'starlight-view-modes';
 import './src/styles/zen-mode.css';
 
 // https://astro.build/config

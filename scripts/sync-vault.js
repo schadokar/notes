@@ -166,7 +166,10 @@ function sync() {
 		}
 		frontmatterStr += '---\n';
 
-		const newContent = frontmatterStr + body;
+		// Remove first h1 heading
+		let processedBody = body.replace(/^\n*# .+\n+/, '');
+
+		const newContent = frontmatterStr + processedBody;
 		const destPath = path.join(destDir, path.basename(filePath));
 
 		fs.writeFileSync(destPath, newContent, 'utf-8');
