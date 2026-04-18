@@ -1,0 +1,21 @@
+---
+// src/components/header/ZenModeHeader.astro
+// This wraps the default Starlight header and adds our zen mode button
+
+import DefaultHead from '@astrojs/starlight/components/Header.astro';
+import ZenModeToggle from '../ZenModeToggle.astro';
+---
+
+<div class="header-wrapper">
+  <DefaultHead {...Astro.props} />
+  <ZenModeToggle />
+</div>
+
+<style>
+  .header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+</style>
