@@ -1,0 +1,36 @@
+/* src/styles/zen-mode.css */
+
+/* Smooth transitions for layout changes */
+aside,
+.right-sidebar,
+.main-content {
+  transition: opacity 0.2s ease, width 0.2s ease, margin 0.2s ease;
+}
+
+/* Hide sidebar in zen mode */
+[data-zen-mode="true"] aside {
+  display: none;
+}
+
+/* Hide right TOC in zen mode */
+[data-zen-mode="true"] .right-sidebar {
+  display: none;
+}
+
+/* Expand content to full viewport width in zen mode */
+[data-zen-mode="true"] main {
+  width: 100%;
+  max-width: 100%;
+}
+
+[data-zen-mode="true"] article {
+  width: 100%;
+  margin: 0;
+  padding: 2rem 1rem;
+}
+
+/* Ensure content doesn't overflow */
+[data-zen-mode="true"] .sl-markdown-content {
+  width: 100%;
+  overflow-x: auto;
+}
