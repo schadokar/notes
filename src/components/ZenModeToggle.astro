@@ -1,0 +1,75 @@
+---
+// src/components/ZenModeToggle.astro
+---
+
+<button
+  id="zen-mode-toggle"
+  class="zen-mode-btn"
+  title="Zen Mode (Shift+Cmd+Z)"
+  aria-label="Toggle zen mode"
+>
+  <svg
+    class="zen-mode-icon"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- Eye icon (normal state) -->
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+    <circle cx="12" cy="12" r="3"></circle>
+  </svg>
+</button>
+
+<style>
+  .zen-mode-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sl-color-text);
+    transition: color 0.2s ease;
+  }
+
+  .zen-mode-btn:hover {
+    color: var(--sl-color-text-accent);
+  }
+
+  .zen-mode-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+</style>
+
+<script>
+  import { toggleZenMode, initializeZenMode } from '../lib/zenMode';
+
+  // Initialize on page load
+  initializeZenMode();
+
+  // Button click handler
+  const button = document.getElementById('zen-mode-toggle');
+  if (button) {
+    button.addEventListener('click', () => {
+      toggleZenMode();
+    });
+  }
+
+  // Keyboard shortcut: Shift+Cmd+Z (macOS) / Shift+Ctrl+Z (Windows/Linux)
+  document.addEventListener('keydown', (e) => {
+    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+    const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+    if (modKey && e.shiftKey && e.key === 'Z') {
+      e.preventDefault();
+      toggleZenMode();
+    }
+  });
+</script>
