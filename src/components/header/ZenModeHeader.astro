@@ -1,21 +1,35 @@
 ---
 // src/components/header/ZenModeHeader.astro
-// This wraps the default Starlight header and adds our zen mode button
+// Custom header with zen mode button
+// Based on Starlight's default header but with zen mode toggle added
 
-import DefaultHead from '@astrojs/starlight/components/Header.astro';
+import SiteTitle from 'virtual:starlight/components/SiteTitle';
+import LanguageSelect from 'virtual:starlight/components/LanguageSelect';
+import Search from 'virtual:starlight/components/Search';
+import SocialIcons from 'virtual:starlight/components/SocialIcons';
 import ZenModeToggle from '../ZenModeToggle.astro';
 ---
 
-<div class="header-wrapper">
-  <DefaultHead {...Astro.props} />
-  <ZenModeToggle />
+<div class="header">
+  <div class="sl-flex items-center justify-between gap-md">
+    <div class="sl-flex items-center gap-md">
+      <SiteTitle {...Astro.props} />
+    </div>
+    <div class="sl-flex items-center justify-end gap-md">
+      <LanguageSelect {...Astro.props} />
+      <Search {...Astro.props} />
+      <SocialIcons {...Astro.props} />
+      <ZenModeToggle />
+    </div>
+  </div>
 </div>
 
 <style>
-  .header-wrapper {
+  .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
+    gap: 1rem;
+    padding: 1rem;
   }
 </style>

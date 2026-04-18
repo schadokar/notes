@@ -41,7 +41,7 @@ export default defineConfig({
 			lastUpdated: true,
 			plugins: [starlightViewModes()],
 			components: {
-				Header: 'src/components/header/ZenModeHeader.astro',
+				Header: './src/components/header/ZenModeHeader.astro',
 			},
 		}),
 	],
