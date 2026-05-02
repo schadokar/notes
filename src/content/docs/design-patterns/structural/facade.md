@@ -2,7 +2,7 @@
 title: "Facade Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Facade pattern in Go — simplify complex subsystems behind a clean interface. Learn how AWS SDK and gRPC services use Facade, and when your Facade becomes a God object liability."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 21
 category: "Structural"
@@ -104,6 +104,8 @@ Facades attract code. You add one method, then another, then error handling, the
 
 **Fix**: When a Facade needs to add conditional logic to determine *how* to coordinate services (not just *that* it coordinates them), stop. That logic belongs in the service layer. Keep Facade methods thin orchestration: call A, call B, call C, assemble result.
 
+> **Code review rule:** If your Facade has an `if`-statement that changes *which* services are called, that conditional logic belongs in the subsystem, not the Facade.
+
 ### Gotcha 2: Facade That Swallows Important Errors
 
 A naive Facade catches errors from subsystems and returns a generic error:
@@ -141,6 +143,70 @@ The Facade should accept configuration at construction time, not bake assumption
 If `OrderFacade` imports `InventoryService`, `PaymentService`, and `NotificationService` directly, it now couples all four packages. In a monorepo, a change to `NotificationService`'s package signature breaks the Facade's compilation. In a microservices context, the Facade service depends on three other services' availability.
 
 **Fix**: Inject subsystem dependencies as interfaces, not concrete types. This keeps the Facade testable and keeps subsystems independently deployable.
+
+### Gotcha 5: Idempotency Gap in Facade Orchestration
+
+A Facade that orchestrates multi-step sequences is vulnerable to double-execution on retries. Consider this timeline:
+
+```
+t=0ms   Client → PlaceOrder(req)
+t=10ms  Facade: Reserve inventory   ✓  reservationID="res-1"
+t=20ms  Facade: Charge payment      ✓  chargeID="chr-1"  ← card charged
+t=5000ms Client timeout fires — no response received
+t=5001ms Client retries → PlaceOrder(req) again
+t=5010ms Facade: Reserve inventory   ✓  reservationID="res-2"
+t=5020ms Facade: Charge payment      ✓  chargeID="chr-2"  ← card charged AGAIN
+```
+
+The customer gets charged twice. This happens even with correct error handling — the first call *succeeded*; the client just never got the response.
+
+**Fix**: The Facade should accept a caller-supplied idempotency key, check a deduplication store before executing, and return the cached result if the key was already processed.
+
+```go
+type PlaceOrderRequest struct {
+	IdempotencyKey string   // Required. Caller generates a UUID per logical attempt.
+	Items          []string
+	Amount         int64
+	Currency       string
+	Email          string
+}
+
+// IdempotencyStore is a short-lived cache (Redis, DynamoDB, etc.) keyed by the
+// caller-supplied idempotency key. TTL should match the retry window (e.g., 24h).
+type IdempotencyStore interface {
+	Get(ctx context.Context, key string) (*Order, error)
+	Set(ctx context.Context, key string, result *Order, ttl time.Duration) error
+}
+
+func (f *OrderFacade) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*Order, error) {
+	if req.IdempotencyKey == "" {
+		return nil, errors.New("PlaceOrder: IdempotencyKey is required")
+	}
+
+	// Check deduplication store first — return cached result for replays.
+	if cached, err := f.idempotencyStore.Get(ctx, req.IdempotencyKey); err == nil {
+		return cached, nil // safe replay: no charge, no reservation
+	}
+
+	order, err := f.executePlaceOrder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Persist result before returning — so a concurrent retry sees it.
+	_ = f.idempotencyStore.Set(ctx, req.IdempotencyKey, order, 24*time.Hour)
+	return order, nil
+}
+```
+
+**What this protects against:**
+- Network timeouts that cause client retries
+- Client-side retry loops (exponential backoff hitting the same endpoint)
+- Load balancer re-routing a request to a second Facade instance mid-flight
+
+**What it does NOT protect against:** Two different callers submitting the same order with different idempotency keys (that's a business-layer deduplication problem, not a Facade problem).
+
+> 💡 **Staff-level insight:** Stripe made idempotency keys a first-class API concept — every mutating API call accepts an `Idempotency-Key` header, and Stripe stores results for 24 hours. The response is identical whether it's the first call or the 100th retry. This is the production reference for this pattern. When you design internal microservice APIs that involve money or state changes, require an idempotency key at the Facade boundary — not as an optional convenience, but as a contract.
 
 ---
 
@@ -207,6 +273,7 @@ type PaymentService interface {
 
 type NotificationService interface {
 	SendOrderConfirmation(ctx context.Context, orderID, email string) error
+	SendOrderCancellation(ctx context.Context, orderID, email string) error
 }
 
 // --- Facade types ---
@@ -280,7 +347,7 @@ func (f *OrderFacade) CancelOrder(ctx context.Context, chargeID, reservationID, 
 	if err := f.inventory.Release(ctx, reservationID); err != nil {
 		return fmt.Errorf("CancelOrder: release inventory: %w", err)
 	}
-	_ = f.notification.SendOrderConfirmation(ctx, reservationID, email)
+	_ = f.notification.SendOrderCancellation(ctx, reservationID, email)
 	return nil
 }
 ```
@@ -294,6 +361,72 @@ func (f *OrderFacade) CancelOrder(ctx context.Context, chargeID, reservationID, 
 **10x load (10k RPS)**: A Facade service adds one extra network hop (if it's a separate microservice) or one function call chain (if it's in-process). The coordination overhead is negligible at 10k RPS. Monitor each subsystem call independently.
 
 **100x load (100k RPS)**: The Facade becomes a potential bottleneck as all traffic flows through it. If subsystem calls can be parallelized (e.g., inventory reservation and payment validation are independent), use `errgroup` to run them concurrently. This halves the end-to-end latency of the Facade.
+
+```go
+// PlaceOrder: parallel fan-out for steps with no data dependency on each other.
+// Reserve inventory and charge payment run concurrently; both outputs are needed
+// before Commit can run — so Commit stays sequential after the errgroup.
+func (f *OrderFacade) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*Order, error) {
+	var (
+		reservationID string
+		chargeID      string
+	)
+
+	// Step 1 & 2 in parallel: neither depends on the other's output.
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		var err error
+		reservationID, err = f.inventory.Reserve(gctx, req.Items)
+		if err != nil {
+			return fmt.Errorf("reserve inventory: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		var err error
+		chargeID, err = f.payment.Charge(gctx, req.Amount, req.Currency)
+		if err != nil {
+			return fmt.Errorf("charge payment: %w", err)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		// Roll back whichever step succeeded before returning.
+		if reservationID != "" {
+			_ = f.inventory.Release(ctx, reservationID)
+		}
+		if chargeID != "" {
+			_ = f.payment.Refund(ctx, chargeID)
+		}
+		return nil, fmt.Errorf("PlaceOrder: parallel step failed: %w", err)
+	}
+
+	// Step 3: Commit — requires reservationID from Step 1. Must stay sequential.
+	if err := f.inventory.Commit(ctx, reservationID); err != nil {
+		_ = f.payment.Refund(ctx, chargeID)
+		_ = f.inventory.Release(ctx, reservationID)
+		return nil, fmt.Errorf("PlaceOrder: commit inventory: %w", err)
+	}
+
+	order := &Order{
+		ID:            fmt.Sprintf("order-%s-%s", reservationID, chargeID),
+		ReservationID: reservationID,
+		ChargeID:      chargeID,
+	}
+
+	// Step 4: Notify — fire-and-forget; order is complete regardless of email outcome.
+	if err := f.notification.SendOrderConfirmation(ctx, order.ID, req.Email); err != nil {
+		fmt.Printf("WARNING: notification failed for order %s: %v\n", order.ID, err)
+	}
+
+	return order, nil
+}
+```
+
+*Parallelising Reserve and Charge cuts latency from `Reserve + Charge + Commit` to `max(Reserve, Charge) + Commit`. At p99 = 50ms each, that's 150 ms → 100 ms — a 33% reduction with zero infrastructure change. Before optimising, trace with Jaeger to confirm which steps are actually slow.*
 
 **1000x load (1M RPS)**: At this scale, the synchronous orchestration model breaks. PlaceOrder involves 3+ sequential network calls — with 10ms each, that's 30ms+ latency per request. At 1M RPS, consider:
 - Pre-validating inputs before the Facade call to fail fast

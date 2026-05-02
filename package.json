@@ -17,7 +17,7 @@
     "astro-mermaid": "^2.0.1",
     "remark-reading-time": "^2.1.0",
     "sharp": "^0.34.2",
-    "starlight-sidebar-topics": "^0.7.1",
+    "starlight-view-modes": "^0.13.0",
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {

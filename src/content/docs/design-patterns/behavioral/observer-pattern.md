@@ -218,11 +218,11 @@ With async notification, goroutine scheduling order is determined by the Go runt
 
 ### Observer vs. Mediator
 
-| Aspect                  | Observer                                | Mediator                                               |
-| ----------------------- | --------------------------------------- | ------------------------------------------------------ |
-| Communication direction | Subject → many Observers (one-way)      | Components ↔ Mediator ↔ Components (bidirectional)     |
-| Coupling                | Observers know which Subject to watch   | Components only know the Mediator                      |
-| Use case                | Broadcasting state change notifications | Coordinating complex interactions between many objects |
+| Aspect                  | Observer                                                            | Mediator                                                                                                                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Communication direction | Subject → many Observers (one-way)                                  | Components ↔ Mediator ↔ Components (bidirectional)                                                                                                                                                                                                                      |
+| Coupling                | Observers know which Subject to watch                               | Components only know the Mediator                                                                                                                                                                                                                                       |
+| Use case                | Broadcasting state change notifications                             | Coordinating complex interactions between many objects                                                                                                                                                                                                                  |
 | Real-world example      | Kafka consumer groups; React's state system; DOM `addEventListener` | Kubernetes `controller-manager` (coordinates Deployment, ReplicaSet, and Pod controllers so they never reference each other directly); air traffic control systems where the tower (Mediator) sequences every aircraft (Component) without planes talking to each other |
 
 **Choose Observer when** broadcasting state changes to independent, decoupled consumers.

@@ -2,7 +2,7 @@
 title: "Composite Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Composite pattern in Go — model tree structures where leaves and branches share the same interface. Learn recursive traversal safety, stack overflow risks, and file system hierarchies at scale."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 22
 category: "Structural"
@@ -103,30 +103,46 @@ AWS Organizations models accounts and OUs in a Composite tree. When you apply a 
 
 Recursive `Size()` on a directory tree 10,000 levels deep will hit Go's default goroutine stack limit. Go grows stacks dynamically, but extreme recursion is still a risk — and in adversarial environments (user-uploaded file archives), attackers can craft deeply nested structures to cause stack exhaustion.
 
-**Fix**: Add a depth guard to all recursive operations:
+**Fix**: Track depth as a field set at `Add` time. Each `Directory.Size()` checks its own depth and calls all children uniformly through the `FileSystemNode` interface — no type switch, no parent knowing about child internals:
 
 ```go
 const maxTreeDepth = 1000
 
-func (d *Directory) sizeWithDepth(depth int) (int64, error) {
-    if depth > maxTreeDepth {
-        return 0, fmt.Errorf("tree depth exceeds limit %d", maxTreeDepth)
+type Directory struct {
+    name     string
+    children []FileSystemNode
+    depth    int // set by parent during Add; root defaults to 0
+}
+
+// Add propagates depth to child Directories at construction time.
+// This keeps traversal methods free of type assertions.
+func (d *Directory) Add(node FileSystemNode) {
+    if child, ok := node.(*Directory); ok {
+        child.depth = d.depth + 1
+    }
+    d.children = append(d.children, node)
+}
+
+// Size guards against runaway recursion using the depth field.
+// The guard lives here, in Directory's own implementation — not in the parent's loop.
+// All children are called via child.Size() uniformly: no type switch.
+func (d *Directory) Size() (int64, error) {
+    if d.depth >= maxTreeDepth {
+        return 0, fmt.Errorf("tree depth exceeds limit %d at %q", maxTreeDepth, d.name)
     }
     var total int64
     for _, child := range d.children {
-        if dir, ok := child.(*Directory); ok {
-            s, err := dir.sizeWithDepth(depth + 1)
-            if err != nil { return 0, err }
-            total += s
-        } else {
-            total += child.Size()
+        s, err := child.Size() // uniform: interface call, no special-casing for *Directory
+        if err != nil {
+            return 0, err
         }
+        total += s
     }
     return total, nil
 }
 ```
 
-Or use iterative traversal with an explicit stack (`[]FileSystemNode`) instead of recursive calls.
+Or use iterative traversal with an explicit stack (`[]FileSystemNode`) instead of recursive calls — the best choice for adversarial (user-supplied) input.
 
 ### Gotcha 2: Cycles Causing Infinite Loops
 
@@ -153,6 +169,71 @@ A composite tree of 10M nodes held in process memory doesn't scale. File system 
 
 **Fix**: Consider lazy loading (Virtual Proxy on composite children — only load children when first accessed), external storage (walk the tree from a database), or streaming traversal (process nodes one at a time instead of loading the whole tree).
 
+### Gotcha 5: Concurrent Traversal Race Conditions
+
+Gotcha 2 recommended tracking visited nodes in a `map[string]bool` to detect cycles. A common mistake is storing that `visited` set as a field on the `Directory` struct. The moment two goroutines traverse the same tree concurrently — exactly what happens in production request handlers — you have a data race:
+
+```go
+// WRONG: visited map stored on the node — data race under concurrent traversal
+type Directory struct {
+    name     string
+    children []FileSystemNode
+    visited  map[string]bool // ← BUG: shared across all goroutines reading this node
+}
+
+func (d *Directory) Size() (int64, error) {
+    if d.visited[d.name] { // goroutine A reads while goroutine B writes → DATA RACE
+        return 0, fmt.Errorf("cycle detected at %q", d.name)
+    }
+    d.visited[d.name] = true
+    // ...
+}
+```
+
+**Fix**: Traversal state is call-scoped, not node-scoped. Allocate the `visited` set as a local variable at the entry point and thread it through the call stack. Each goroutine gets its own:
+
+```go
+// CORRECT: visited is a local variable — one map per goroutine call, never shared
+func sizeWithCycleCheck(node FileSystemNode, visited map[string]bool) (int64, error) {
+    id := node.Name()
+    if visited[id] {
+        return 0, fmt.Errorf("cycle detected at %q", id)
+    }
+    visited[id] = true
+    dir, ok := node.(*Directory)
+    if !ok {
+        return node.Size() // leaf: no children to recurse into
+    }
+    var total int64
+    for _, child := range dir.children {
+        s, err := sizeWithCycleCheck(child, visited) // same map, same goroutine's stack
+        if err != nil {
+            return 0, err
+        }
+        total += s
+    }
+    return total, nil
+}
+
+// Public entry point: allocates a fresh visited map per call — never shared between goroutines.
+func (d *Directory) Size() (int64, error) {
+    return sizeWithCycleCheck(d, make(map[string]bool))
+}
+```
+
+**When is concurrent traversal safe without locks?**
+
+| Scenario                                              | Safe? | Why                                                                         |
+| ----------------------------------------------------- | ----- | --------------------------------------------------------------------------- |
+| Multiple goroutines traversing, no mutations          | ✅ Yes | Go's memory model allows unlimited concurrent reads on the same data        |
+| Read-only after construction (pointer published once) | ✅ Yes | Once the tree is built and the pointer is shared, reads need no sync        |
+| One goroutine traversing, another calling `Add()`     | ❌ No  | `Add()` writes to the `children` slice while traversal reads it — data race |
+| Concurrent mutations during construction              | ❌ No  | Protect `Add()` and all reads with `sync.RWMutex` on the children slice     |
+
+The safe pattern: build the entire tree in a single goroutine, then publish the root pointer. After publication, all goroutines traverse safely with zero locks — the same reason Go's immutable string values can be shared freely across goroutines.
+
+> 💡 **Staff-level insight:** The difference between "read-only after construction" and "mutation-concurrent" is the same principle behind a plain `map` vs. `sync.Map`. If you build a Composite tree once at startup and serve it read-only across thousands of request goroutines, you need zero synchronization in traversal. Design `Build() *Tree` to return exactly once; ensure all public methods are read-only. Immutability by design is cheaper than any lock.
+
 ---
 
 ## 5. Where to Use (and Where NOT to Use)
@@ -177,17 +258,56 @@ A composite tree of 10M nodes held in process memory doesn't scale. File system 
 
 ## 6. Versus (Comparisons)
 
-| Aspect               | Composite                               | Iterator                           | Decorator                     |
-| -------------------- | --------------------------------------- | ---------------------------------- | ----------------------------- |
-| Purpose              | Represent part-whole tree structure     | Traverse a collection sequentially | Add behavior to an object     |
-| Structure            | Tree (recursive containment)            | Linear sequence                    | Linear chain (wrapping)       |
-| Interface uniformity | Leaves and composites same interface    | All collections same interface     | Wrapped object same interface |
-| Typical use          | File systems, UI trees, org hierarchies | Slices, maps, queues, trees        | Logging, auth, caching layers |
-| Recursive            | Yes — naturally                         | No — iterative walk                | No — linear chain             |
+| Aspect               | Composite                                            | Iterator                           | Decorator                     | Plain Recursive Struct                             |
+| -------------------- | ---------------------------------------------------- | ---------------------------------- | ----------------------------- | -------------------------------------------------- |
+| Purpose              | Represent part-whole tree structure                  | Traverse a collection sequentially | Add behavior to an object     | Model a homogeneous tree in-process                |
+| Structure            | Tree (recursive containment)                         | Linear sequence                    | Linear chain (wrapping)       | Typed `[]*Node` with concrete children             |
+| Interface uniformity | Leaves and composites same interface                 | All collections same interface     | Wrapped object same interface | Caller knows the concrete type directly            |
+| Multiple leaf types  | ✅ Natural — each type implements interface           | N/A                                | N/A                           | ❌ Requires union struct or `any` field             |
+| Adding new types     | ✅ Open/closed: new struct, zero changes to traversal | N/A                                | N/A                           | ❌ Must update every traversal site                 |
+| Performance          | One interface dispatch per call                      | —                                  | —                             | Direct field access, easier for compiler to inline |
+| Typical use          | File systems, UI trees, org hierarchies              | Slices, maps, queues, trees        | Logging, auth, caching layers | Config trees, single-type AST nodes                |
+| Recursive            | Yes — naturally                                      | No — iterative walk                | No — linear chain             | Yes — typed recursion                              |
 
 **Choose Composite when** you have a tree structure where individual elements and groups of elements must be treated uniformly with recursive aggregate operations.
 
 **Choose Iterator when** you need to traverse a collection without exposing its internal structure — but the collection itself doesn't need to be recursive.
+
+### Composite vs. Plain Recursive Struct
+
+A plain recursive struct stores children as a typed slice — no interface, no dispatch overhead:
+
+```go
+// Plain recursive struct — direct field access, no interface indirection
+type Node struct {
+    Name     string
+    Size     int64
+    Children []*Node
+}
+
+func totalSize(n *Node) int64 {
+    total := n.Size
+    for _, c := range n.Children {
+        total += totalSize(c) // no interface dispatch, no type assertion
+    }
+    return total
+}
+```
+
+| Aspect              | Composite (interface)                                             | Plain Recursive Struct                                       |
+| ------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------ |
+| Multiple leaf types | ✅ `File`, `Symlink`, `MountPoint` each implement `FileSystemNode` | ❌ Requires a union struct with optional fields or `any`      |
+| Uniform operations  | ✅ Caller never needs a type assertion                             | ❌ Caller must handle each node type explicitly               |
+| Adding node types   | ✅ New struct, zero changes to existing traversal code             | ❌ Must update every traversal site                           |
+| Performance         | One pointer indirection per call (vtable dispatch)                | Direct struct field access — more inlinable by the compiler  |
+| Simplicity          | Slight overhead for small, homogeneous trees                      | ✅ Clearer for a single-type tree; less abstraction to follow |
+| Testability         | Mock the interface per node type in isolation                     | No interface needed — pass concrete structs directly         |
+
+**Choose Composite (interface) when** you have two or more concrete leaf types that must respond to the same operations, and adding new types without changing traversal logic is a real requirement. The interface indirection pays for itself the moment you have heterogeneous children.
+
+**Choose a plain recursive struct when** all nodes are the same concrete type (a config tree, a JSON AST, or an arithmetic expression tree with one node variant), the tree is internal to a single package, and raw performance or readability matters more than extensibility.
+
+> 💡 **Staff-level insight:** Most Composite over-engineering happens when someone applies the interface pattern to a single-type tree "for future extensibility." If you have one node type today, start with a plain struct. The refactor to an interface when a second type arrives is a handful of lines. Premature abstraction costs readability every day; the refactor costs one afternoon once.
 
 ---
 
@@ -232,6 +352,7 @@ func (f *File) List(indent int) []string {
 type Directory struct {
 	name     string
 	children []FileSystemNode
+	depth    int // set by parent on Add; root defaults to 0
 }
 
 func NewDirectory(name string) *Directory {
@@ -240,34 +361,29 @@ func NewDirectory(name string) *Directory {
 
 func (d *Directory) Name() string { return d.name }
 
+// Add appends a child and propagates depth to any child Directory.
+// Doing this at construction time keeps traversal methods free of type assertions.
 func (d *Directory) Add(node FileSystemNode) {
+	if child, ok := node.(*Directory); ok {
+		child.depth = d.depth + 1
+	}
 	d.children = append(d.children, node)
 }
 
+// Size guards against runaway recursion using the depth field set at Add time.
+// The guard lives in Directory's own implementation — not delegated to the parent's loop.
+// All children are called via child.Size() through the FileSystemNode interface: no type switch.
 func (d *Directory) Size() (int64, error) {
-	return d.sizeWithDepth(0)
-}
-
-func (d *Directory) sizeWithDepth(depth int) (int64, error) {
-	if depth > maxDepth {
+	if d.depth >= maxDepth {
 		return 0, fmt.Errorf("directory tree depth exceeds limit %d at %q", maxDepth, d.name)
 	}
 	var total int64
 	for _, child := range d.children {
-		switch c := child.(type) {
-		case *Directory:
-			s, err := c.sizeWithDepth(depth + 1)
-			if err != nil {
-				return 0, err
-			}
-			total += s
-		default:
-			s, err := child.Size()
-			if err != nil {
-				return 0, err
-			}
-			total += s
+		s, err := child.Size() // uniform: all children called through the interface
+		if err != nil {
+			return 0, err
 		}
+		total += s
 	}
 	return total, nil
 }
@@ -301,7 +417,7 @@ func BuildExampleTree() FileSystemNode {
 }
 ```
 
-*`Directory.sizeWithDepth()` guards against deep recursion by tracking depth and returning an error at the limit — rather than silently causing a stack overflow.*
+*`Directory.Size()` guards against runaway recursion using a `depth` field set at `Add` time, not as a recursive parameter. The guard lives in the `Directory` implementation — no type switch in the parent loop, preserving the interface-uniformity guarantee of the Composite pattern.*
 
 ---
 
@@ -313,6 +429,47 @@ func BuildExampleTree() FileSystemNode {
 - When a file is added, propagate the size addition up the tree (parent tracking)
 - Store aggregate sizes in a cache (Redis) alongside the tree, invalidated on writes
 - This trades traversal time for write-time complexity
+
+The simplest in-process version of this is **dirty-bit memoization**: cache the aggregate result on each interior node and recompute only when the subtree has been mutated:
+
+```go
+type Directory struct {
+    name       string
+    children   []FileSystemNode
+    depth      int
+    cachedSize int64
+    dirty      bool // true whenever a child is added or removed
+}
+
+func (d *Directory) Add(node FileSystemNode) {
+    if child, ok := node.(*Directory); ok {
+        child.depth = d.depth + 1
+    }
+    d.children = append(d.children, node)
+    d.dirty = true // invalidate this node's cached aggregate
+}
+
+func (d *Directory) Size() (int64, error) {
+    if d.depth >= maxDepth {
+        return 0, fmt.Errorf("tree depth exceeds limit %d at %q", maxDepth, d.name)
+    }
+    if !d.dirty {
+        return d.cachedSize, nil // cache hit: O(1) instead of O(subtree size)
+    }
+    var total int64
+    for _, child := range d.children {
+        s, err := child.Size()
+        if err != nil {
+            return 0, err
+        }
+        total += s
+    }
+    d.cachedSize, d.dirty = total, false
+    return total, nil
+}
+```
+
+*At 100x read load with infrequent writes, cache hit rate approaches 100% — `Size()` on a stable subtree drops from O(N) to O(1). Note: this is single-threaded safe only; for concurrent mutation add a `sync.RWMutex` to guard `Add` and the dirty-check in `Size`.*
 
 **1000x load**: At this scale, the Composite tree is almost certainly backed by a database. Hierarchical queries in PostgreSQL (`WITH RECURSIVE`) or specialized graph databases (Neo4j) handle tree traversal. The in-process Composite pattern becomes a programming model for local object manipulation, not the primary storage and query mechanism.
 

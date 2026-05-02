@@ -2,7 +2,7 @@
 title: "Strangler Fig Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Strangler Fig pattern — migrating monoliths to microservices incrementally via a routing layer, managing dual-write consistency, dark launches, and defining exit criteria for migrations."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 8
 category: "Distributed"
@@ -259,6 +259,7 @@ This is not a routing problem — it's a data archaeology problem. Budget signif
 package strangerfig
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -363,7 +364,7 @@ func (r *StranglerRouter) darkLaunch(w http.ResponseWriter, req *http.Request, r
 
 	// Serve the real response from the OLD service.
 	// Restore the body so old service can read it.
-	req.Body = io.NopCloser(io.NewReader(bodyBytes))
+	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	r.proxyTo(w, req, rule.OldURL, "old")
 }
 
@@ -375,7 +376,7 @@ func (r *StranglerRouter) shadowRequest(originalReq *http.Request, body []byte, 
 	defer cancel()
 
 	shadowReq, err := http.NewRequestWithContext(ctx, originalReq.Method,
-		rule.NewURL.String()+originalReq.RequestURI, io.NewReader(body))
+		rule.NewURL.String()+originalReq.RequestURI, bytes.NewReader(body))
 	if err != nil {
 		r.log.Error("shadow request creation failed", "error", err)
 		return
@@ -418,20 +419,6 @@ func (r *StranglerRouter) findRule(req *http.Request) *RoutingRule {
 	return nil
 }
 
-// io.NewReader is not in stdlib — this is a convenience shim
-// In practice use bytes.NewReader(bodyBytes) from "bytes" package
-func io_NewReader(b []byte) io.Reader {
-	return &bytesReader{b: b}
-}
-
-type bytesReader struct{ b []byte; pos int }
-func (r *bytesReader) Read(p []byte) (int, error) {
-	if r.pos >= len(r.b) { return 0, io.EOF }
-	n := copy(p, r.b[r.pos:])
-	r.pos += n
-	return n, nil
-}
-
 // ─── Example Usage ────────────────────────────────────────────────────────────
 
 // In production, this would be your main.go:
@@ -452,7 +439,7 @@ func (r *bytesReader) Read(p []byte) (int, error) {
 // http.ListenAndServe(":8080", router)
 ```
 
-*The dark launch goroutine uses a completely independent context — not the original request's context. This ensures shadow traffic continues even if the original request is cancelled. Shadow request failures logged but never returned to users. A `bytes.NewReader` replaces `io.NewReader` from stdlib.*
+*The dark launch goroutine uses a completely independent context — not the original request's context. This ensures shadow traffic continues even if the original request is cancelled. Shadow request failures are logged but never returned to users.*
 
 ---
 
@@ -481,7 +468,7 @@ At 1000x, consider replacing the custom routing layer with a production-grade AP
 - **Kubernetes Gateway API**: native Kubernetes traffic management with canary weights and header-based routing
 - **Istio VirtualService**: fine-grained traffic splitting with observability built in
 
-At 1000x, the routing overhead per request must be sub-millisecond. Custom Go code is efficient; an Envoy sidecar adds ~0.5ms. Either works. A multi-hop Python routing service does not.
+At 1000x, the routing overhead per request must be sub-millisecond. Custom Go code is efficient; an Envoy sidecar adds ~0.5ms. Either works. A multi-hop Python routing service does not. To enforce consistent sidecar versions across all services, use an OPA/Gatekeeper admission webhook that rejects pods missing or running an outdated sidecar version annotation — or gate merges in CI with an annotation check on `sidecar.version` so version drift is caught before deployment, not at runtime.
 
 ---
 

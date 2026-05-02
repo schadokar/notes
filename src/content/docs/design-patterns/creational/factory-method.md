@@ -2,7 +2,7 @@
 title: "Factory Method Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Factory Method pattern in Go — defer object creation to subclasses and config-driven factories. Learn database/sql's factory model, plugin registries, and when switch-statement factories become liabilities."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 25
 category: "Creational"
@@ -183,6 +183,75 @@ if s3, ok := storage.(*S3Storage); ok {
 
 If callers type-assert to the concrete type, the factory's abstraction is broken. If `S3Storage`-specific behavior is needed, add it to the `Storage` interface or create a specialized `PresignedURLStorage` interface.
 
+### Gotcha 5: Factory Init Opening Network Connections at Cold Start
+
+```go
+// DANGEROUS: this dials the network during factory creation
+func NewPostgresStorageFactory() StorageFactoryFunc {
+    return func(config map[string]string) (Storage, error) {
+        db, err := sql.Open("postgres", config["dsn"])
+        if err != nil {
+            return nil, err
+        }
+        // Ping() dials the network — happens at factory creation time,
+        // which is during Lambda cold start or pod init, before any request.
+        if err := db.Ping(); err != nil {
+            return nil, fmt.Errorf("factory init: failed to connect: %w", err)
+        }
+        return &PostgresStorage{db: db}, nil
+    }
+}
+```
+
+**Why this bites you in production:**
+
+In AWS Lambda, every cold start budget matters. A factory that dials a database, fetches remote config from AWS SSM/Secrets Manager, or validates TLS certificates adds 200–800ms to every cold start. At low traffic (10 req/min), Lambda cold starts are frequent — your p99 latency spikes are entirely factory-init latency.
+
+In Kubernetes, a pod that takes 3+ seconds to initialize (factory network calls blocking `main()`) fails readiness probes and gets killed before serving traffic. Under a traffic surge triggering rapid scale-out, you get restart loops and cascading failures across the new pods.
+
+**The fix — lazy initialization with `sync.Once`:**
+
+```go
+type PostgresStorage struct {
+    dsn  string
+    once sync.Once
+    db   *sql.DB
+    err  error
+}
+
+// connect dials only on the first actual use, not at construction time.
+func (s *PostgresStorage) connect() (*sql.DB, error) {
+    s.once.Do(func() {
+        db, err := sql.Open("postgres", s.dsn)
+        if err != nil {
+            s.err = err
+            return
+        }
+        s.err = db.Ping()
+        s.db = db
+    })
+    return s.db, s.err
+}
+
+func (s *PostgresStorage) Get(ctx context.Context, key string) ([]byte, error) {
+    db, err := s.connect()
+    if err != nil {
+        return nil, fmt.Errorf("storage unavailable: %w", err)
+    }
+    // ... execute query using db
+    return nil, nil
+}
+
+// Factory captures config only — zero network activity.
+func NewPostgresStorageFactory() StorageFactoryFunc {
+    return func(config map[string]string) (Storage, error) {
+        return &PostgresStorage{dsn: config["dsn"]}, nil // fast — no network
+    }
+}
+```
+
+> 💡 **Staff-level insight:** Every network call in a factory is startup latency charged to your cold-start budget. The rule is: **factories configure, they do not connect.** Defer all network I/O to first use via `sync.Once`. This applies uniformly to database pools, Redis clients, gRPC channel setup, and remote config fetches. At Google and Amazon, this pattern is a mandatory checkpoint in service readiness reviews for any workload deployed on Lambda or Kubernetes with aggressive scale-to-zero requirements.
+
 ---
 
 ## 5. Where to Use (and Where NOT to Use)
@@ -284,16 +353,21 @@ func (r *StorageRegistry) registeredNames() []string {
 // --- Concrete implementations ---
 
 type LocalStorage struct {
+	mu       sync.RWMutex
 	basePath string
 	store    map[string][]byte
 }
 
 func (s *LocalStorage) Put(_ context.Context, key string, data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.store[key] = data
 	return nil
 }
 
 func (s *LocalStorage) Get(_ context.Context, key string) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	d, ok := s.store[key]
 	if !ok {
 		return nil, fmt.Errorf("key not found: %s", key)
@@ -302,6 +376,8 @@ func (s *LocalStorage) Get(_ context.Context, key string) ([]byte, error) {
 }
 
 func (s *LocalStorage) Delete(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.store, key)
 	return nil
 }
@@ -365,7 +441,9 @@ func BuildRegistry() *StorageRegistry {
 - The `database/sql` package never imports the driver directly — drivers register themselves in `init()`
 - This is the plugin architecture model: extensible without modifying the framework
 
-**What the interviewer wants:** Real-world pattern recognition and the ability to connect the GoF pattern to production Go code you've used every day.
+**Common mistake:** Saying that `sql.Open()` creates the database connection. It does not — it calls the registered driver's factory to construct a `*sql.DB` (a lazy connection pool wrapper). No network dial happens at `sql.Open()`. The actual connection is established on the first `db.Ping()` or `db.Query()`. Conflating "opens a connection" with "calls the registered factory" signals that the candidate has used `database/sql` but never read past the surface.
+
+**What the interviewer is looking for:** Real-world pattern recognition — connecting a classic GoF pattern to production Go code you use every day. Bonus signal: explaining that `database/sql` never imports driver packages directly (zero compile-time coupling), and that blank imports (`_ "github.com/lib/pq"`) trigger the driver's `init()` self-registration. That's the plugin architecture insight.
 
 ---
 
@@ -377,6 +455,27 @@ func BuildRegistry() *StorageRegistry {
 - New implementations call `Register()` — no changes to the registry, no changes to callers
 - This is the Open/Closed Principle: open for extension (new registrations), closed for modification (registry never changes)
 - Model after `database/sql.Register()` — well-known, production-proven
+
+**Common mistake:** Describing the registry implementation correctly but never naming the principle it embodies. Saying "I'll use a map of factory functions" is mechanically right but shows pattern-matching skill, not design vocabulary. Interviewers at staff level listen for the name of the principle.
+
+**What the interviewer is looking for:** Explicit articulation of the Open/Closed Principle — the "O" in SOLID. The clearest answer names it directly: *"The registry is open for extension — new implementations register themselves — and closed for modification — the dispatch logic in `Create()` never changes."* Closing with *"this is the same model `database/sql` uses"* connects the theory to production-proven Go design and earns strong positive signal.
+
+---
+
+### Q4: "A colleague's code calls a factory, gets back a `Storage` interface, then immediately type-asserts to `*S3Storage` to call `SetPresignedURLExpiry()`. What's wrong, and how do you fix it?"
+
+**Key points to cover:**
+- The type assertion breaks the factory abstraction: the caller now depends on the concrete type, defeating the purpose of returning an interface
+- This is the top code-review failure mode for the factory pattern — the abstraction was added in form but not in function
+- Three correct fixes, in order of preference:
+  1. **Extend the interface**: if presigned URL behavior is general to all storage backends, add a `PresignedURLStorage` sub-interface that embeds `Storage` and adds `SetPresignedURLExpiry(d time.Duration)`; check for it with an interface assertion, not a type assertion — `if p, ok := storage.(PresignedURLStorage); ok { ... }`
+  2. **Inject config at construction**: pass the expiry duration as a factory config key — `config["presigned_url_expiry"] = "1h"` — so the S3 factory sets it at creation time and callers never need post-construction mutation
+  3. **Return a richer type from the S3 factory directly**: the S3 factory function returns an `S3Storage` interface (which embeds `Storage` and adds the presigned method) so callers that know they need S3-specific behavior get the right interface from the factory itself
+- The worst non-fix: wrapping the type assertion in a helper function — the coupling is still there, just hidden
+
+**Common mistake:** Proposing an `ok` guard on the type assertion as the fix: `if s3, ok := storage.(*S3Storage); ok { ... }`. The `ok` check prevents a panic but does not fix the design problem — the caller is still coupled to `*S3Storage`. If `LocalStorage` is ever returned by the same factory, the presigned expiry is silently skipped with no error, which is arguably worse than a panic.
+
+**What the interviewer is looking for:** Interface design judgment. The interviewer is testing whether you understand the factory's core purpose — making callers independent of concrete types — and whether you can identify that any type assertion through a factory-returned interface is a design smell requiring a redesign, not a patch. Staff-level answer: redesign the interface to express the capability, don't route around the coupling.
 
 ---
 

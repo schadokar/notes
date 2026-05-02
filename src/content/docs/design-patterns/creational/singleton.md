@@ -2,7 +2,7 @@
 title: "Singleton Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Singleton pattern in Go — use sync.Once safely, detect data races with the race detector, and learn why dependency injection always beats global state in production code."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 24
 category: "Creational"
@@ -178,6 +178,35 @@ At 100k RPS all hitting `IncrementCounter()`, the single mutex serializes all op
 
 **Fix**: Use lock-free atomic operations (`sync/atomic`), sharded maps, or a library like `prometheus/client_golang` that uses per-counter atomics.
 
+### Gotcha 5: The `-count=2` Test Reveals Hidden Singleton Coupling
+
+`go test -count=2` runs every test function **twice inside the same process**. This is the most revealing test for Singleton bugs because `sync.Once` guarantees the initializer runs exactly once — across *both* runs. Global state accumulated in the first pass carries silently into the second pass.
+
+```go
+var cache = newInMemoryCache() // Singleton — initialized once at package load
+
+func TestUserLookup(t *testing.T) {
+    cache.Set("user:1", "alice")
+    name, _ := cache.Get("user:1")
+    assert.Equal(t, "alice", name)
+    // First run: passes — cache is empty, "alice" is set and retrieved correctly
+    // Second run (-count=2): cache STILL has "user:1" from the first run
+    // If the test asserts on cache size, calls Delete, or checks "not found" — it breaks
+}
+```
+
+The failure modes `-count=2` exposes:
+
+- **Corrupted initial state**: the Singleton holds data from run 1 when run 2 starts — tests that assume an empty state silently fail
+- **Silent skips**: initialization that was expected to fire again does nothing (`sync.Once` already fired)
+- **Assertion drift**: state-dependent assertions pass on run 1 and produce wrong results on run 2, which appears as a flaky test rather than a Singleton bug
+
+**The false fix**: Adding a `TestMain` that resets state via `init()` logic won't work. `init()` runs once at program startup — `-count=2` does not re-invoke it between iterations.
+
+**The real fix**: Inject the dependency. Each test constructs a fresh instance. `sync.Once` is correct for process-global infrastructure (DB pool, logger) — not for anything a test needs to control.
+
+> 💡 **Staff-level insight:** `-count=2` is the cheapest test you can add to CI that will surface hidden Singleton coupling. Make `go test -race -count=2 -parallel=4 ./...` a permanent gate. If it passes, your tests are stateless between runs. If it fails and you've never run it before, expect to find several Singletons that nobody knew were shared.
+
 ---
 
 ## 5. Where to Use (and Where NOT to Use)
@@ -331,14 +360,15 @@ func (s *UserService) GetUserName(id string) (string, error) {
 
 ## 9. Monitoring & Observability
 
-| Metric                       | Type      | Alert Condition                                              |
-| ---------------------------- | --------- | ------------------------------------------------------------ |
-| `db.pool.open_connections`   | Gauge     | > 80% of MaxOpenConns (pool near exhaustion)                 |
-| `db.pool.idle_connections`   | Gauge     | = 0 consistently (all connections in use, saturation signal) |
-| `db.pool.wait_duration_ms`   | Histogram | p99 > 10ms (requests waiting for connections)                |
-| `db.pool.wait_count`         | Counter   | Increasing trend (pool consistently undersized)              |
-| `singleton.init.duration_ms` | Histogram | p99 > 5000ms (slow initialization — blocks first requests)   |
-| `process.start.duration_ms`  | Histogram | Regression after adding new Singletons                       |
+| Metric                         | Type      | Alert Condition                                                                                          |
+| ------------------------------ | --------- | -------------------------------------------------------------------------------------------------------- |
+| `db.pool.open_connections`     | Gauge     | > 80% of MaxOpenConns (pool near exhaustion)                                                             |
+| `db.pool.idle_connections`     | Gauge     | = 0 consistently (all connections in use, saturation signal)                                             |
+| `db.pool.wait_duration_ms`     | Histogram | p99 > 10ms (requests waiting for connections)                                                            |
+| `db.pool.wait_count`           | Counter   | Increasing trend (pool consistently undersized)                                                          |
+| `db.pool.max_idle_time_closed` | Counter   | Rapidly increasing (ConnMaxIdleTime too short — connection churn; map to `db.Stats().MaxIdleTimeClosed`) |
+| `singleton.init.duration_ms`   | Histogram | p99 > 5000ms (slow initialization — blocks first requests)                                               |
+| `process.start.duration_ms`    | Histogram | Regression after adding new Singletons                                                                   |
 
 ---
 
@@ -366,6 +396,10 @@ func (s *UserService) GetUserName(id string) (string, error) {
 - Fix: inject dependencies as interfaces; use `t.Cleanup()` to reset global state when Singleton is unavoidable
 - Detection: `go test -race -count=2 -parallel=4` — the most aggressive test for global state bugs
 
+**Common mistake**: assuming that resetting global state in a `TestMain` or package-level `init()` will re-run between `-count=2` iterations. `init()` runs exactly once at program startup — it does not fire again between the first and second test pass. Singletons initialized via `sync.Once` are equally silent: the initializer has already run on iteration one, so iteration two starts with the mutated state left behind by the first pass.
+
+**What the interviewer is looking for**: explicit knowledge that `go test -race -count=2 -parallel=4` is the canonical command for surfacing exactly this class of bug — not just knowing the flags, but understanding *why* each one contributes. `-race` catches concurrent writes to shared memory, `-count=2` exposes state that survives between test runs (the true Singleton coupling detector), and `-parallel=4` maximises goroutine interleaving so timing-dependent races surface reliably. A candidate who cites all three flags and can explain what each one reveals signals staff-level production awareness.
+
 ---
 
 ### Q3: "At 100k RPS, requests are timing out while waiting for database connections. The DB pool is a Singleton. How do you diagnose and fix it?"
@@ -377,6 +411,7 @@ func (s *UserService) GetUserName(id string) (string, error) {
 - If connections are opened but idle: `MaxIdleConns` is too low — connections are being created and destroyed per request
 - Add `pgbouncer` transaction-mode pooling to multiplex Go's pool against a smaller number of Postgres connections
 - Set `SetConnMaxLifetime` to rotate connections and prevent stale connections from TCP-level timeouts
+- Set `SetConnMaxIdleTime` — the fourth pool parameter most candidates miss: closes connections that have been idle longer than this duration. Critical in environments with aggressive idle-connection firewalls (AWS RDS Proxy, GCP Cloud SQL Auth Proxy, NAT gateways) that silently drop idle TCP connections after a fixed timeout. If `db.Stats().MaxIdleTimeClosed` is spiking, either your `ConnMaxIdleTime` is shorter than your inter-request gap (causing constant connection churn) or your infrastructure firewall is shorter than your setting (causing silent half-open connections). The fix: set `ConnMaxIdleTime` to slightly less than the infrastructure's idle timeout.
 
 ---
 

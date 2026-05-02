@@ -2,7 +2,7 @@
 title: "Decorator Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Decorator pattern in Go — wrap objects to add behavior without modifying them. Learn middleware chains, allocation costs at 100k RPS, and when decorators become production liabilities."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 18
 category: "Structural"
@@ -21,7 +21,7 @@ sidebar:
 ---
 ## 1. Overview
 
-The Decorator pattern wraps an object to add new behavior without modifying the original. Think of it like layers on a burrito — each layer (guacamole, sour cream, salsa) adds something new, but the burrito underneath never changes. You can add or remove layers independently, and each layer still looks like a burrito from the outside.
+The Decorator pattern wraps an object to add new behavior without modifying the original. Think of it like the security checkpoint at an airport: a traveler passes through a rate-limiting gate, a document check, and a baggage scanner before reaching the gate agent. Each checkpoint is independent, can stop or pass the traveler through, and — crucially — every layer sees exactly the same "traveler" at the same interface. Add or remove a checkpoint without touching anything else.
 
 In Go, this pattern is everywhere. Every time you write an `http.Handler` middleware, you're writing a Decorator. Every time you wrap an `io.Writer` with a `bufio.Writer`, you're using a Decorator. This is arguably the most commonly used GoF pattern in production Go code.
 
@@ -119,7 +119,7 @@ Stripe's payment read path uses a caching layer in front of the database. A `Cac
 
 Every decorator that creates a struct adds one heap allocation per request. At 100k RPS with 5 decorators, that's 500k allocations/second. Each allocation also increases GC pressure. Profile with `pprof` before adding decorators in a hot path.
 
-**Fix**: Use pointer receivers, minimize allocations in decorators, or use `sync.Pool` for frequently-constructed wrapper structs.
+**Fix**: Make decorators stateless singletons where possible — one instance shared by all goroutines, all per-request data flowing through `context.Context`. For decorators that genuinely need per-request structs, `sync.Pool` is the primary defence: pool the wrapper, reset it on checkout, return it in a deferred `Put`. See **Staff-Level Preparation Tips §2** for a benchmark exercise that puts concrete numbers on this.
 
 ### Gotcha 2: Decorator Order Matters — and Breaks Silently at 2 AM
 
@@ -144,6 +144,49 @@ func BuildProductionChain(base http.Handler) http.Handler {
 A decorator that only partially forwards interface methods is a silent contract violation. If your `LoggingDecorator` wraps a `ReadWriter` but only forwards `Write` and not `Read`, callers expecting `ReadWriter` behavior get a nil pointer panic or wrong behavior.
 
 **Fix**: Use Go struct embedding to forward all methods automatically, then override only what you need.
+
+```go
+import (
+	"io"
+	"log"
+)
+
+// --- BROKEN: manual wrapping — easy to forget a method ---
+
+type BrokenLoggingReadWriter struct {
+	rw io.ReadWriter
+}
+
+func (b *BrokenLoggingReadWriter) Write(p []byte) (int, error) {
+	log.Printf("writing %d bytes", len(p))
+	return b.rw.Write(p)
+}
+
+// Read() is never defined. BrokenLoggingReadWriter does NOT satisfy io.ReadWriter.
+// The compiler flags this only when you assign to an io.ReadWriter variable —
+// if you use it as a concrete type, the missing method silently breaks callers
+// deep in a call chain, far from the point of construction.
+
+// --- CORRECT: struct embedding auto-forwards every unoverridden method ---
+
+type LoggingReadWriter struct {
+	io.ReadWriter // embedding promotes Read, Write, and any future methods
+}
+
+// Only override Write. Read() is NOT defined here —
+// it is forwarded automatically to the embedded io.ReadWriter.
+func (l *LoggingReadWriter) Write(p []byte) (int, error) {
+	log.Printf("writing %d bytes", len(p))
+	return l.ReadWriter.Write(p)
+}
+
+// Return the interface type so callers can't accidentally depend on the concrete type.
+func NewLoggingReadWriter(rw io.ReadWriter) io.ReadWriter {
+	return &LoggingReadWriter{ReadWriter: rw}
+}
+```
+
+*The key property: if `io.ReadWriter` ever gains a third method, `LoggingReadWriter` forwards it automatically. `BrokenLoggingReadWriter` silently breaks.*
 
 ### Gotcha 4: The "Decorator Tax" on Stack Traces
 
@@ -186,19 +229,35 @@ Finding which decorator injected a bad header or swallowed an error is hard. Add
 
 ## 6. Versus (Comparisons)
 
-| Aspect              | Decorator                         | Middleware               | Inheritance            |
-| ------------------- | --------------------------------- | ------------------------ | ---------------------- |
-| Mechanism           | Wraps an interface                | Wraps a function/handler | Extends a class        |
-| Runtime composition | Yes                               | Yes                      | No (compile-time only) |
-| Go idiom            | Native                            | Native                   | Not available in Go    |
-| Order control       | Explicit at construction          | Framework-managed        | N/A                    |
-| Testability         | High — mock the wrapped interface | High                     | Lower — class coupling |
-| Stack depth         | Grows with each decorator         | Same                     | N/A                    |
-| Allocation cost     | Per decorator struct              | Depends on framework     | Zero                   |
+| Aspect              | Struct Decorator                             | Middleware (Framework)             | Closure-based Middleware                |
+| ------------------- | -------------------------------------------- | ---------------------------------- | --------------------------------------- |
+| Mechanism           | Struct wrapping an interface                 | Plug-in to framework handler chain | Function returning `http.HandlerFunc`   |
+| Holds state         | Yes — struct fields (rate limiter, CB state) | Framework or context scope         | Closure capture only (read-only config) |
+| Runtime composition | Yes                                          | Yes                                | Yes                                     |
+| Go idiom            | Native                                       | Framework-dependent                | Native — idiomatic for stateless layers |
+| Order control       | Explicit at construction                     | Framework-managed                  | Explicit at construction                |
+| Testability         | High — mock the wrapped interface            | High — framework test helpers      | High — plain function call              |
+| Stack depth         | Grows with each decorator                    | Same                               | Grows with each closure                 |
+| Allocation cost     | Per decorator struct                         | Depends on framework               | Closure allocated once at registration  |
 
-**Choose Decorator when** you need composable, independently testable behavior layers on an interface, and you control how the chain is built.
+The closure-based middleware pattern looks like this:
 
-**Choose a simple helper function when** you're adding a single, non-composable responsibility that doesn't need to be stacked with other behaviors.
+```go
+// Stateless — no struct needed. The closure captures config once at registration.
+func WithLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("method=%s path=%s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Composed the same way as struct decorators:
+handler := WithLogging(WithAuth(realHandler))
+```
+
+**Choose Struct Decorator when** you need to hold mutable state across requests — a rate limiter counter, a circuit breaker state machine, or a metrics histogram. State lives in the struct, safely shared by all goroutines.
+
+**Choose Closure-based Middleware when** the layer is stateless — logging, tracing, request-ID injection. Less code, no extra type to name, and just as composable.
 
 **Choose Middleware (framework-managed)** when you're inside an existing framework (Gin, Echo, gRPC interceptors) and want to plug into its established chain mechanism.
 

@@ -2,7 +2,7 @@
 title: "Template Method Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Template Method pattern in Go using composition, not inheritance. Learn how to build extensible report generators, Kafka consumer loops, and testing frameworks without the Java inheritance trap."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 16
 category: "Behavioral"
@@ -166,6 +166,127 @@ sequenceDiagram
 
 Go's `testing.T` also follows Template Method thinking. `go test` defines the test runner template: discover test functions, run each, capture output, report pass/fail. Your test functions are the hooks — `func TestSomething(t *testing.T)` is the hook method that you implement. The testing framework provides the skeleton.
 
+### Step 6: Streaming Hook Design for Production
+
+The `Header() string` / `Body() string` / `Footer() string` interface works well for reports you can hold in memory. In production, that assumption breaks quickly. A report with 500,000 rows of sales data will consume hundreds of megabytes of heap if each `Body()` builds and returns a string. The template breaks from memory exhaustion, not logic failure.
+
+The fix is to pass an `io.Writer` to each hook instead of returning a string. Hooks stream output directly to the destination — an HTTP `ResponseWriter`, a file, an S3 multipart upload — without buffering the full output in memory.
+
+```go
+import (
+    "context"
+    "fmt"
+    "io"
+)
+
+// StreamingReportHooks is the Writer-based hook interface for large-dataset reports.
+// Each hook receives a context (for cancellation and deadlines) and an io.Writer
+// to stream output to. Returning an error stops generation immediately.
+type StreamingReportHooks interface {
+    Header(ctx context.Context, w io.Writer) error
+    Body(ctx context.Context, w io.Writer) error
+    Footer(ctx context.Context, w io.Writer) error
+}
+
+// StreamingReporter applies the same Template Method skeleton — Header → Body → Footer —
+// but streams output directly to the destination writer without buffering.
+type StreamingReporter struct {
+    hooks StreamingReportHooks
+}
+
+// Generate streams report output to w. If any hook returns an error,
+// generation stops immediately and the error is returned to the caller.
+func (s *StreamingReporter) Generate(ctx context.Context, w io.Writer) error {
+    if err := s.hooks.Header(ctx, w); err != nil {
+        return fmt.Errorf("header: %w", err)
+    }
+    if err := s.hooks.Body(ctx, w); err != nil {
+        return fmt.Errorf("body: %w", err)
+    }
+    if err := s.hooks.Footer(ctx, w); err != nil {
+        return fmt.Errorf("footer: %w", err)
+    }
+    return nil
+}
+```
+
+**When to use each design:**
+
+| Criterion          | `hook() string`                   | `hook(ctx, w io.Writer) error`        |
+| ------------------ | --------------------------------- | ------------------------------------- |
+| Dataset size       | < ~1 MB total output              | > 1 MB, or unbounded rows             |
+| Output destination | In-memory string, test assertions | HTTP response, file, S3, stdout       |
+| Memory constraints | Relaxed                           | Container with limited heap           |
+| Error model        | Panic or sentinel empty string    | Explicit `error` return               |
+| Testability        | Simple — compare returned strings | Use `bytes.Buffer` as the test writer |
+| Complexity         | Low — no setup needed             | Higher — caller manages the writer    |
+
+**Decision rule:** If your `Body()` hook makes a database query and the number of rows is not bounded at compile time — use the Writer-based interface. If you are writing a configuration summary, audit log entry, or anything you know fits in a few hundred KB — the string-returning interface is fine and easier to test.
+
+> 💡 **Staff-level insight:** Design your hook interfaces for streaming from the start if there is any chance the dataset grows. Retrofitting `hook() string` to `hook(ctx, w io.Writer) error` is a breaking API change across every concrete implementation in your codebase. At Stripe and Google, report generation services are built on Writer-based hooks from day one specifically to avoid this retrofit. The added test complexity (use `bytes.Buffer` as the test writer) is trivially worth it.
+
+### Step 7: Error Propagation Through the Template Method
+
+The `Generate() string` interface has a silent flaw: a hook that fails a database query or network call has no channel to signal that failure. Some teams work around this by panicking inside hooks, or by storing `sync.Mutex`-guarded error fields on the concrete type. Both are wrong.
+
+The correct fix: upgrade the hook signatures to return `(string, error)` and change `Generate()` to return `(string, error)`. The template method checks each hook's error before calling the next one — a failed `Body()` stops execution immediately, `Footer()` is never called, and the error surfaces to the caller with full context.
+
+```go
+// Error-aware hook interface — every hook can signal failure explicitly.
+type ReportHooks interface {
+    Header() (string, error)
+    Body() (string, error)
+    Footer() (string, error)
+}
+
+// Generate is the template method. If any hook returns an error, generation stops
+// immediately and the partial output is discarded. Footer() is NOT called if Body() fails.
+func (b *BaseReporter) Generate() (string, error) {
+    header, err := b.hooks.Header()
+    if err != nil {
+        return "", fmt.Errorf("header hook: %w", err)
+    }
+
+    body, err := b.hooks.Body()
+    if err != nil {
+        return "", fmt.Errorf("body hook: %w", err) // Footer() is NOT called
+    }
+
+    footer, err := b.hooks.Footer()
+    if err != nil {
+        return "", fmt.Errorf("footer hook: %w", err)
+    }
+
+    return header + "\n" + body + "\n" + footer, nil
+}
+```
+
+```go
+// Concrete implementation — Body() surfaces a real DB error through the template.
+func (h *HTMLReport) Body() (string, error) {
+    rows, err := h.db.QueryContext(h.ctx, "SELECT region, revenue FROM sales WHERE ...")
+    if err != nil {
+        return "", fmt.Errorf("sales query: %w", err) // propagates to Generate()
+    }
+    defer rows.Close()
+    // ... render rows into HTML table
+    return rendered, nil
+}
+
+// Caller receives the error with full context — no silent partial output.
+report, err := reporter.Generate()
+if err != nil {
+    log.Error("report generation failed", "error", err)
+    http.Error(w, "failed to generate report", http.StatusInternalServerError)
+    return
+}
+fmt.Fprint(w, report)
+```
+
+The `%w` wrapping preserves the original error for `errors.Is` / `errors.As` checks upstream. The caller can distinguish a DB connection error from a query timeout — all from the single `err` return value.
+
+> 💡 **Staff-level insight:** A template method that returns `(result, error)` forces every hook to be honest about failure. This mirrors the discipline that makes Go's explicit error returns superior to Java exception propagation in concurrent systems — each call site sees the failure explicitly, rather than relying on unchecked exceptions to bubble up through an inheritance hierarchy you do not control.
+
 ---
 
 ## 3. Use Cases
@@ -281,6 +402,7 @@ func (b *BaseReporter) Generate() string {
 - The entire algorithm varies — use Strategy instead (replace the whole algorithm)
 - You only have one implementation — no pattern needed; just write the function
 - The hooks have no natural ordering — use Strategy or a collection of function callbacks
+- Hook A's output is required as direct input to hook B — use a Pipeline pattern instead where each stage explicitly passes its output to the next stage
 - You are trying to emulate Java inheritance in Go — this is always wrong; use interface composition
 
 > 💡 **Staff-level insight:** Template Method is the pattern that underpins every SDK and framework hook system you have ever used: Kafka consumer callbacks, HTTP middleware hooks (before_action, after_action in Rails), database migration Up/Down methods, and test lifecycle hooks (Before/After/Setup/Teardown). When you build an SDK for other teams to implement, you are designing Template Methods. The quality of your hook interface design — how many hooks, what they are named, what order they are called in, which are required vs. optional — determines how easy or painful it will be for teams to extend your framework correctly. This is high-leverage staff-level API design work.
@@ -487,13 +609,14 @@ func (m *mockHooks) Body() string   { return m.body }
 func (m *mockHooks) Footer() string { return m.footer }
 
 func TestGenerate_CallsHooksInOrder(t *testing.T) {
-	hooks := &mockHooks{header: "H", body: "B", footer: "F"}
+	hooks := &mockHooks{header: "<<<HEADER>>>", body: "<<<BODY>>>", footer: "<<<FOOTER>>>"}
 	reporter := templatemethod.NewBaseReporter(hooks)
 	result := reporter.Generate()
-	// Verify order: Header before Body, Body before Footer
-	assert.Contains(t, result, "H")
-	assert.Less(t, strings.Index(result, "H"), strings.Index(result, "B"))
-	assert.Less(t, strings.Index(result, "B"), strings.Index(result, "F"))
+	// Verify order: Header before Body, Body before Footer.
+	// Unique sentinel tokens prevent strings.Index returning 0 for the wrong reason.
+	assert.Contains(t, result, "<<<HEADER>>>")
+	assert.Less(t, strings.Index(result, "<<<HEADER>>>"), strings.Index(result, "<<<BODY>>>"))
+	assert.Less(t, strings.Index(result, "<<<BODY>>>"), strings.Index(result, "<<<FOOTER>>>"))
 }
 ```
 

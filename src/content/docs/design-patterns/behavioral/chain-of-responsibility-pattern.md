@@ -2,7 +2,7 @@
 title: "Chain of Responsibility Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Chain of Responsibility pattern in Go — the engine behind HTTP middleware chains, gRPC interceptors, and API gateway plugins. Learn handler ordering, silent failures, and the idiomatic Go middleware pattern."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 14
 category: "Behavioral"
@@ -162,13 +162,31 @@ type UnaryServerInterceptor func(
 
 Every gRPC interceptor wraps the next call. The `handler` parameter is `next.ServeHTTP` in the HTTP world. The pattern is identical.
 
+**Side-by-side comparison — the same Chain of Responsibility structure, two type systems:**
+
+|                      | HTTP Middleware                           | gRPC Unary Interceptor                                        |
+| -------------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| **Type**             | `func(http.Handler) http.Handler`         | `func(ctx, req, *UnaryServerInfo, UnaryHandler) (any, error)` |
+| **"next"**           | `http.Handler`                            | `grpc.UnaryHandler`                                           |
+| **Call next**        | `next.ServeHTTP(w, r)`                    | `return handler(ctx, req)`                                    |
+| **Stop chain**       | `http.Error(w, msg, code); return`        | `return nil, status.Error(code, msg)`                         |
+| **Context**          | `r.Context()` / `r.WithContext(ctx)`      | `ctx` parameter directly                                      |
+| **Response**         | Written to `http.ResponseWriter` in place | Returned as `(interface{}, error)`                            |
+| **Chaining library** | `gorilla/mux`, `chi`, `alice`             | `grpc.ChainUnaryInterceptor`                                  |
+
+*Despite the type-signature differences, the mental model is identical: each handler receives a "call next" function, runs its logic before and/or after, and can short-circuit the chain by returning without calling it.*
+
 ---
 
 ## 3. Use Cases
 
 ### 1. Go net/http Middleware (Every Go Web Service)
 
-Every production Go HTTP service uses Chain of Responsibility: logging, authentication, authorization, rate limiting, request ID injection, distributed tracing context propagation, CORS headers, panic recovery — each implemented as a separate middleware. Libraries like `gorilla/mux`, `chi`, and `echo` all provide `Use(middleware)` methods that build this chain. The pattern is so fundamental to Go web services that most engineers implement it without ever thinking of it as "Chain of Responsibility."
+Every production Go HTTP service uses Chain of Responsibility: logging, authentication, authorization, rate limiting, request ID injection, distributed tracing context propagation, CORS headers, panic recovery — each implemented as a separate middleware. Libraries like `gorilla/mux`, `chi`, and `echo` all provide `Use(middleware)` methods that build this chain.
+
+[**HashiCorp Vault**](https://github.com/hashicorp/vault/blob/main/http/handler.go) is a well-documented public example: its Go HTTP server wraps every API request in a chain of middleware that includes audit logging, request namespace resolution, performance standby detection, and rate limiting — each as an independent `http.Handler` wrapper. You can read the exact chain construction in `vault/http/handler.go` in their open-source repository. The order is deliberate and security-critical: audit logging runs before namespace resolution so that even malformed namespace requests are logged.
+
+The pattern is so fundamental to Go web services that most engineers implement it without ever thinking of it as "Chain of Responsibility."
 
 ### 2. Kong API Gateway Plugins
 
@@ -432,6 +450,41 @@ func NewRouter(validator TokenValidator, limiter RateLimiter) http.Handler {
 
 // ErrNoTerminalHandler is returned when a classical chain has no terminal node.
 var ErrNoTerminalHandler = errors.New("chain: no terminal handler configured")
+
+// --- Classical GoF handler chain ---
+
+// Handler is the interface every classical chain node must implement.
+type Handler interface {
+	Handle(ctx context.Context, req *Request) error
+	SetNext(h Handler)
+}
+
+// Request is a generic inbound request — replace with your domain type.
+type Request struct {
+	Token   string
+	UserID  string
+	Payload []byte
+}
+
+// BaseHandler provides SetNext/HandleNext plumbing.
+// Embed BaseHandler in concrete handlers to avoid reimplementing next-chain logic.
+type BaseHandler struct {
+	next Handler
+}
+
+func (b *BaseHandler) SetNext(h Handler) {
+	b.next = h
+}
+
+// HandleNext forwards to the next handler in the chain.
+// Returns ErrNoTerminalHandler when no next handler is configured —
+// surfaces misconfigured chains at request time rather than panicking on nil.
+func (b *BaseHandler) HandleNext(ctx context.Context, req *Request) error {
+	if b.next == nil {
+		return ErrNoTerminalHandler
+	}
+	return b.next.Handle(ctx, req)
+}
 ```
 
 ---
@@ -489,6 +542,8 @@ The middleware chain moves from application code to infrastructure: Kong, Envoy,
 
 **Common mistake:** Proposing a giant switch statement inside one monolithic handler that branches per tenant. Does not scale, is not testable per tenant, and couples all tenant logic together.
 
+**What the interviewer wants:** Evidence that you can decompose cross-cutting concerns into composable, independently deployable units — and that you understand the difference between static chain composition (good for homogeneous traffic) and dynamic chain building (necessary for per-tenant customization). Bonus points for calling out that per-tenant configuration must be hot-reloadable and for naming a concrete mechanism (Redis, etcd, or a config service) rather than leaving it abstract.
+
 ### Q2: What is the correct middleware order for a typical Go API server? Why does order matter?
 
 **Key points:**
@@ -503,6 +558,10 @@ The middleware chain moves from application code to infrastructure: Kong, Envoy,
 8. **Handler** (innermost) — business logic
 
 **Why order matters:** Rate limiting before auth → anonymous DDoS can exhaust buckets. Auth before rate limiting → rate limit is keyed on identity, not IP (which can be spoofed). Recovery before logging → panics in any middleware are caught and logged.
+
+**Common mistakes:** Placing `RecoveryMiddleware` anywhere other than the outermost position (panics in logging or auth middleware would then crash the process). Placing rate limiting before auth, opening the DDoS vector described in Gotcha 2. Omitting `RequestID` middleware entirely, making distributed log correlation impossible. Treating the list as a suggestion rather than a security-enforced constraint.
+
+**What the interviewer wants:** Not just memorization of the list — they want to hear you reason through *why* each item is in its position using security and observability arguments. A strong answer explains the consequence of every ordering violation, not just the correct order. Staff-level signal: volunteering that the canonical order should be documented, code-reviewed, and enforced by a linter or integration test — not just convention.
 
 ### Q3: How does Chain of Responsibility differ from the Decorator pattern? Are Go HTTP middlewares one or the other?
 

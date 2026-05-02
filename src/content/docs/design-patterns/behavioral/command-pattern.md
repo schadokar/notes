@@ -2,7 +2,7 @@
 title: "Command Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Command pattern in Go — the foundation of undo/redo, audit logs, queued jobs, and distributed workflow engines. Learn bounded queues, undo stacks, and why Kafka messages are Commands at scale."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 13
 category: "Behavioral"
@@ -66,6 +66,7 @@ classDiagram
     }
     class AuditLogCommand {
         -db DB
+        -commandID string
         -entry AuditEntry
         -insertedID int64
         +Execute(ctx context.Context) error
@@ -109,6 +110,33 @@ sequenceDiagram
 ```
 
 *The caller never waits for execution. The worker goroutine processes at its own pace. This decoupling is the key value of Command.*
+
+### Step 3b: Undo Stack Flow
+
+```mermaid
+sequenceDiagram
+    participant W as Worker goroutine
+    participant U as UndoStack
+    participant Cmd as ConcreteCommand
+    participant R as Receiver (DB/API)
+
+    W->>R: cmd.Execute(ctx)
+    R-->>W: success
+    W->>U: Push(cmd)
+    Note over U: cmd appended — available for undo
+
+    Note over W,U: — later: undo requested by caller —
+
+    W->>U: Pop(ctx)
+    U->>U: pop last cmd from stack
+    U->>Cmd: cmd.Undo(ctx)
+    Cmd->>R: R.DeleteAuditEntry(ctx, insertedID)
+    R-->>Cmd: ok
+    Cmd-->>U: nil
+    U-->>W: nil
+```
+
+*Execute succeeds → command is pushed onto the undo stack. An undo request pops the stack and calls `Undo` on the concrete command, which reaches back into the receiver to reverse the action. The undo stack never sees inside the command — it only holds the interface.*
 
 ### Step 4: Why This Matters for Distributed Systems
 
@@ -206,6 +234,14 @@ In a text editor processing millions of keystrokes, retaining every command fore
 - Commands are so tightly coupled to a specific receiver type that they can never be reused — you have over-abstracted
 - The codebase is small and the undo requirement doesn't exist — do not pre-optimize for flexibility you will never use
 
+**Anti-pattern: Command wrapping simple CRUD**
+
+A service needs to INSERT a new user record. There is no undo requirement, no async scheduling, and no audit history beyond what the database already captures. An engineer adds a `CreateUserCommand` struct, defines `Execute` as a one-line wrapper around `repo.Create(user)`, and routes it through the `CommandQueue`. The result is an extra struct, an extra interface, and a 5–20 ms queuing delay — with zero architectural benefit. Rule of thumb: if you cannot answer "what does the Command pattern give me here that a direct function call does not?", delete the wrapper and call the repository directly.
+
+**Anti-pattern: Async Command for operations that require immediate caller feedback**
+
+A user submits a form. The UI expects inline validation errors returned synchronously so it can highlight the failing fields. An engineer routes the submission through an async `CommandQueue`, then bolts on a polling endpoint or WebSocket callback so the caller can reunite with the result. This is accidental complexity: you have built a distributed state machine to solve a request/response problem. The right design is a direct function call returning `(result, error)`. Command belongs where fire-and-forget or deferred execution is the *natural* model — image processing, email delivery, audit logging. It does not belong in the synchronous request/response path unless the downstream receiver's latency forces the operation out of band.
+
 > 💡 **Staff-level insight:** Command is the foundation of three major system design concepts: event sourcing (the event log is an immutable append-only CommandQueue), CQRS (commands are the write side), and distributed saga pattern (saga steps are Commands with compensating actions as Undo). When an interviewer asks "how would you implement distributed transactions?", the answer involves Commands at every step. Understanding Command deeply unlocks these advanced patterns simultaneously.
 
 ---
@@ -251,6 +287,7 @@ package command
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -353,9 +390,12 @@ type AuditEntry struct {
 }
 
 // AuditLogCommand inserts an audit record and can delete it on undo.
-// This demonstrates a command that carries the inserted ID for true reversibility.
+// CommandID must be a globally unique identifier (e.g. UUID v4) set by the caller.
+// It enables idempotent execution — critical when this command runs inside a Kafka
+// consumer that delivers messages at least once.
 type AuditLogCommand struct {
 	DB         DB         // DB is an interface — injectable for testing
+	CommandID  string     // globally unique per logical operation; required for idempotency
 	Entry      AuditEntry
 	insertedID int64 // populated by Execute; used by Undo
 }
@@ -365,9 +405,25 @@ type AuditLogCommand struct {
 type DB interface {
 	InsertAuditEntry(ctx context.Context, e AuditEntry) (int64, error)
 	DeleteAuditEntry(ctx context.Context, id int64) error
+	// IsCommandExecuted returns true if a command with this ID was already
+	// successfully executed. Used by Execute for at-least-once idempotency.
+	IsCommandExecuted(ctx context.Context, commandID string) (bool, error)
 }
 
 func (a *AuditLogCommand) Execute(ctx context.Context) error {
+	// Idempotency check — required for distributed commands.
+	// Kafka delivers messages at least once: the same command can arrive twice after
+	// a consumer crash or partition rebalance. Without this guard, a crash between
+	// Execute and the consumer's offset commit creates a duplicate audit entry on
+	// restart. Keying on CommandID makes Execute safe to call any number of times.
+	already, err := a.DB.IsCommandExecuted(ctx, a.CommandID)
+	if err != nil {
+		return fmt.Errorf("idempotency check: %w", err)
+	}
+	if already {
+		return nil // duplicate delivery — already executed, safe to skip
+	}
+
 	id, err := a.DB.InsertAuditEntry(ctx, a.Entry)
 	if err != nil {
 		return err
@@ -392,21 +448,26 @@ func (a *AuditLogCommand) Undo(ctx context.Context) error {
 ```go
 func main() {
 	queue := command.NewCommandQueue(256)
-	undo := command.NewUndoStack(100)
+	undo  := command.NewUndoStack(100)
+	dlq   := command.NewCommandQueue(512) // DLQ: separate bounded queue for failed commands
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go queue.Process(ctx,
-		func(cmd command.Command) { undo.Push(cmd) },     // on success: save for undo
-		func(cmd command.Command, err error) {             // on failure: log and alert
-			log.Printf("command failed: %v", err)
+		func(cmd command.Command) { undo.Push(cmd) },            // on success: save for undo
+		func(cmd command.Command, err error) {                    // on failure: route to DLQ
+			if enqErr := dlq.Enqueue(cmd); enqErr != nil {
+				log.Printf("DLQ full — command permanently lost: %v", err)
+				// TODO: alert on-call; DLQ overflow is potential data loss
+			}
 		},
 	)
 
 	cmd := &command.AuditLogCommand{
-		DB:    db,
-		Entry: command.AuditEntry{UserID: "usr_123", Action: "login", Timestamp: time.Now()},
+		DB:        db,
+		CommandID: uuid.New().String(), // globally unique; enables idempotent execution
+		Entry:     command.AuditEntry{UserID: "usr_123", Action: "login", Timestamp: time.Now()},
 	}
 	if err := queue.Enqueue(cmd); err != nil {
 		// queue full — apply back-pressure (rate limit caller)
@@ -492,6 +553,29 @@ Commands cross service boundaries. The in-process channel becomes a Kafka topic.
 - Commands must be idempotent — the system must handle executing the same command twice safely (check-then-act pattern keyed on command ID)
 - After max retries, escalate: alert on-call, page, move to permanent DLQ for manual inspection
 - For Kafka: set consumer group max retries, publish to `{topic}.DLQ` on failure, write a separate DLQ consumer service
+
+```go
+// Wire DLQ into the main command processor:
+dlq := command.NewCommandQueue(512)
+
+go queue.Process(ctx,
+    func(cmd command.Command) { undo.Push(cmd) },
+    func(cmd command.Command, err error) {
+        if enqErr := dlq.Enqueue(cmd); enqErr != nil {
+            log.Printf("DLQ full — command permanently lost: %v", err)
+            // page on-call: DLQ overflow is data loss
+        }
+    },
+)
+
+// A separate retry worker drains the DLQ with exponential backoff.
+// Because Execute is idempotent (keyed on CommandID), re-executing a
+// command that partially succeeded is safe — the second call returns nil.
+go dlq.Process(retryCtx,
+    func(cmd command.Command) { log.Println("DLQ retry succeeded") },
+    func(cmd command.Command, err error) { permanentDLQ.Enqueue(cmd) }, // max retries exceeded
+)
+```
 
 **What the interviewer wants:** Production operational thinking — not just the happy path, but the failure handling, observability, and recovery path.
 

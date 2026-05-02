@@ -2,7 +2,7 @@
 title: "Iterator Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Iterator pattern in Go — beyond range loops. Learn lazy database cursor iteration, context-cancellable traversal, and why holding a lock during iteration is a deadlock waiting to happen."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 17
 category: "Behavioral"
@@ -185,6 +185,156 @@ PostgreSQL cursors are the canonical Iterator use case. When a query might retur
 
 The Kafka consumer's polling mechanism is an explicit Iterator. The `Consume()` loop is `Next()` — it blocks until a message is available or a timeout occurs. The message is `Value()`. The consumer loop runs until the context is cancelled. Each call to `Poll()` fetches the next batch from Kafka's broker. This is Iterator over a distributed, durable, unbounded stream — the most scaled form of the pattern.
 
+```go
+package iterator
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+)
+
+// KafkaMessage is the domain type produced by KafkaIterator.
+type KafkaMessage struct {
+	Topic     string
+	Partition int32
+	Offset    kafka.Offset
+	Key       []byte
+	Value     []byte
+}
+
+// KafkaIterator wraps confluent-kafka-go's ReadMessage() as a standard Iterator.
+// Each call to Next() blocks until a message is available or the poll window expires.
+// Always call Close() when done — it commits offsets and closes the consumer.
+type KafkaIterator struct {
+	ctx      context.Context
+	consumer *kafka.Consumer
+	current  KafkaMessage
+	err      error
+	timeout  time.Duration
+}
+
+// NewKafkaIterator subscribes to topics and returns a ready-to-use iterator.
+//
+// timeout controls how long ReadMessage() blocks waiting for the next message.
+// Use 100ms — short enough to check ctx.Done() frequently between polls,
+// long enough to avoid a busy-spin wasting CPU when the topic is idle.
+func NewKafkaIterator(
+	ctx context.Context,
+	consumer *kafka.Consumer,
+	topics []string,
+	timeout time.Duration,
+) (*KafkaIterator, error) {
+	if err := consumer.SubscribeTopics(topics, nil); err != nil {
+		return nil, fmt.Errorf("kafkaiterator: subscribe failed: %w", err)
+	}
+	return &KafkaIterator{
+		ctx:      ctx,
+		consumer: consumer,
+		timeout:  timeout,
+	}, nil
+}
+
+// Next blocks until a message is available, the context is cancelled, or a
+// non-retriable broker error occurs. Returns false on shutdown or fatal error.
+// ErrTimedOut from ReadMessage is NOT an error — it is a normal empty-poll
+// result that causes Next() to loop and re-check the context.
+func (it *KafkaIterator) Next() bool {
+	for {
+		// Context check first — this is what makes the iterator gracefully
+		// respect SIGTERM or upstream cancellation without a stuck goroutine.
+		select {
+		case <-it.ctx.Done():
+			it.err = it.ctx.Err()
+			return false
+		default:
+		}
+
+		msg, err := it.consumer.ReadMessage(it.timeout)
+		if err == nil {
+			// Happy path: a message arrived within the poll window.
+			it.current = KafkaMessage{
+				Topic:     *msg.TopicPartition.Topic,
+				Partition: msg.TopicPartition.Partition,
+				Offset:    msg.TopicPartition.Offset,
+				Key:       msg.Key,
+				Value:     msg.Value,
+			}
+			return true
+		}
+
+		kafkaErr, ok := err.(kafka.Error)
+		if ok && kafkaErr.Code() == kafka.ErrTimedOut {
+			// Poll window expired with no messages — not an error, just empty.
+			// Loop back to check ctx.Done() before the next poll.
+			continue
+		}
+
+		// Non-timeout error: broker unavailable, auth failure, partition
+		// revoked while not rebalancing, etc. Surface it and stop.
+		it.err = fmt.Errorf("kafkaiterator: ReadMessage: %w", err)
+		return false
+	}
+}
+
+// Value returns the most recently consumed KafkaMessage.
+// Only valid after a successful Next() call.
+func (it *KafkaIterator) Value() KafkaMessage {
+	return it.current
+}
+
+// Err returns any non-context error that caused Next() to return false.
+// Call after the loop to distinguish clean shutdown (ctx.Err()) from
+// broker failures (broker unavailable, schema mismatch, etc.).
+func (it *KafkaIterator) Err() error {
+	return it.err
+}
+
+// Close commits final offsets (if auto-commit is enabled) and closes the consumer.
+// MUST be called — always use: defer it.Close()
+func (it *KafkaIterator) Close() error {
+	return it.consumer.Close()
+}
+```
+
+**Usage — caller sees a simple loop; all Kafka polling mechanics are hidden:**
+
+```go
+cfg := &kafka.ConfigMap{
+	"bootstrap.servers": "kafka:9092",
+	"group.id":          "order-processor",
+	"auto.offset.reset": "earliest",
+}
+consumer, err := kafka.NewConsumer(cfg)
+if err != nil {
+	return err
+}
+
+it, err := NewKafkaIterator(ctx, consumer, []string{"orders"}, 100*time.Millisecond)
+if err != nil {
+	return err
+}
+defer it.Close() // commits offsets, releases consumer group membership
+
+for it.Next() {
+	msg := it.Value()
+	if err := processMessage(ctx, msg.Value); err != nil {
+		// Log and continue — or break to stop processing on unrecoverable errors.
+		log.Printf("failed to process %s/%d/%d: %v",
+			msg.Topic, msg.Partition, msg.Offset, err)
+	}
+}
+// After the loop, distinguish graceful shutdown from broker error:
+if err := it.Err(); err != nil {
+	return fmt.Errorf("kafka consumption stopped unexpectedly: %w", err)
+}
+// it.Err() == nil means the context was cancelled (graceful shutdown).
+```
+
+> 💡 **Staff-level insight:** The 100ms poll timeout is not arbitrary. It is the interval at which the iterator checks `ctx.Done()`. A 10-second timeout means a service receiving SIGTERM may take 10 seconds to stop consuming — long enough to miss Kubernetes' `terminationGracePeriodSeconds`. A 1ms timeout busy-polls the broker and wastes CPU when the topic is idle. 100ms is the industry-standard starting point; tune it based on your shutdown latency requirements and topic throughput.
+
 ### 3. Pagination Cursor (Continuation Token Pattern)
 
 REST APIs with large result sets use pagination cursors: `GET /orders?after=cursor_xyz`. The server returns a page of results and a `next_cursor` token. The client uses the token in the next request. Implemented as an Iterator, the caller loops with `it.Next()` which makes the HTTP call and updates the internal cursor token. The caller never manages HTTP pagination logic — they just iterate. GitHub's API, Stripe's API, and most modern REST APIs use this pattern.
@@ -307,12 +457,12 @@ func processOrders(ctx context.Context, db *sql.DB) {
 
 ### Iterator vs. Channel-Based Fan-Out
 
-| Aspect        | Iterator (sequential)            | Channel (concurrent fan-out)              |
-| ------------- | -------------------------------- | ----------------------------------------- |
-| Concurrency   | Sequential — one consumer        | Concurrent — multiple goroutines          |
-| Ordering      | Maintained by Iterator           | Not guaranteed across goroutines          |
-| Back-pressure | Natural — `Next()` controls pace | Channel buffer; drop on overflow          |
-| Use case      | One consumer processing in order | Parallel workers processing independently |
+| Aspect        | Iterator (sequential)                                                                          | Channel (concurrent fan-out)                                                                                                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Concurrency   | Sequential — one consumer                                                                      | Concurrent — multiple goroutines                                                                                                                                                                       |
+| Ordering      | Maintained by Iterator                                                                         | Not guaranteed across goroutines                                                                                                                                                                       |
+| Back-pressure | Caller-controlled — `Next()` only fetches when called; producer pauses naturally between calls | **Blocking send** (`ch <- v`) stalls the producer goroutine when the buffer is full; **non-blocking send** (`select { case ch <- v: default: }`) silently drops items — you must choose one explicitly |
+| Use case      | One consumer processing in order                                                               | Parallel workers processing independently                                                                                                                                                              |
 
 **Choose Iterator when** processing is sequential and order matters.
 
@@ -539,6 +689,61 @@ The database cursor's connection stays open for the duration of the export. At 1
 
 The Iterator never terminates. `it.Next()` always returns `true` (until context cancellation). The collection is not a finite DB table — it is a continuously appended Kafka topic. Memory usage per iterator stays constant (one message at a time). The challenge is throughput — iterating at Kafka consumer speed (100K msgs/sec per partition) requires zero allocations per `Next()` call. Use object pools for the `Value()` type; avoid JSON deserialization on the hot path; use binary encoding (protobuf/Avro).
 
+Here is what zero-allocation `Next()` looks like using `sync.Pool` to reuse the `Order` struct:
+
+```go
+// orderPool recycles Order structs to avoid heap allocation on the hot path.
+// At 100K msgs/sec, allocating a new Order per message = 100K GC objects/sec.
+// With the pool, that drops to near zero.
+var orderPool = sync.Pool{
+    New: func() any { return new(Order) },
+}
+
+// PooledKafkaIterator is a KafkaIterator variant that reuses Order structs.
+type PooledKafkaIterator struct {
+    KafkaIterator        // embed the base iterator
+    currentOrder *Order  // pointer into the pool — valid only between Next() and Release()
+}
+
+func (it *PooledKafkaIterator) Next() bool {
+    if !it.KafkaIterator.Next() {
+        return false
+    }
+    // Return previous order to pool before overwriting the pointer.
+    if it.currentOrder != nil {
+        *it.currentOrder = Order{} // zero before return — prevents data bleeding
+        orderPool.Put(it.currentOrder)
+    }
+    // Borrow an Order from the pool and decode into it — zero allocation.
+    it.currentOrder = orderPool.Get().(*Order)
+    msg := it.KafkaIterator.Value()
+    if err := proto.Unmarshal(msg.Value, it.currentOrder); err != nil {
+        orderPool.Put(it.currentOrder)
+        it.currentOrder = nil
+        it.err = fmt.Errorf("unmarshal failed: %w", err)
+        return false
+    }
+    return true
+}
+
+// Order returns the pooled Order. The pointer is valid until the next Next() call.
+// If you need to hold the value longer, copy it: copied := *it.Order()
+func (it *PooledKafkaIterator) Order() *Order {
+    return it.currentOrder
+}
+```
+
+**The contract the caller must respect:**
+
+```go
+for it.Next() {
+    order := it.Order() // borrowed from pool — valid only in this iteration
+    shipOrder(order)    // use it here
+    // DO NOT store 'order' in a slice or goroutine — it will be overwritten.
+    // If you need it to outlive the iteration: copied := *order
+}
+```
+
 > 💡 **Staff-level insight:** At scale, iterator performance comes down to one thing: allocations per `Next()` call. Every heap allocation in the hot loop adds GC pressure. Profile with `go tool pprof` and look for unexpected allocations in `Next()` and `Value()`. The ideal high-throughput iterator allocates nothing per call — it deserializes into a reused struct, iterates over a fixed-size pre-fetched batch, and applies back-pressure by blocking `Next()` when the processing goroutine is behind. This is exactly how Kafka's consumer SDK achieves >100K messages/second per consumer goroutine.
 
 ---
@@ -576,6 +781,8 @@ Instrument a `LeakDetector` in development and staging: at `Close()`, record the
 - Checkpointing: for extremely long jobs, checkpoint the last processed ID to file/DB so the job can resume after a crash
 
 **Common mistake:** Proposing `SELECT * FROM table` with `rows.Scan(...)` in a loop without mentioning connection pool management or context cancellation. Demonstrates awareness of the API but not the operational concerns.
+
+**What the interviewer wants:** To see you move from "does the code work?" to "what are the production costs?" The question is not really about iterators — it is about whether you understand that holding a DB connection for 30 minutes on a shared pool is a capacity risk. A strong answer names the specific failure mode (pool exhaustion), offers the tradeoff between a long-lived cursor (simple, one connection) vs. keyset-paginated batches (`WHERE id > :last_seen_id`, releases the connection after each page), and shows you can pick the right option based on constraints (job frequency, pool size, SLA for concurrent queries).
 
 ### Q2: How does Go's `sql.Rows` implement the Iterator pattern? What resource management responsibility does it impose on the caller?
 

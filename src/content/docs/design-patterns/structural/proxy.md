@@ -2,7 +2,7 @@
 title: "Proxy Pattern: A Staff Engineer's Complete Guide"
 description: "Master the Proxy pattern in Go — control object access with caching, lazy loading, and protection proxies. Learn race-safe initialization, stale cache pitfalls, and Envoy's role as a distributed proxy."
 date: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
-lastModified: Thu Apr 16 2026 05:30:00 GMT+0530 (India Standard Time)
+lastModified: Fri Apr 17 2026 05:30:00 GMT+0530 (India Standard Time)
 series: "Design Patterns Deep Dive"
 order: 20
 category: "Structural"
@@ -108,6 +108,34 @@ This is Proxy at infrastructure scale: neither the client nor the server knows t
 
 When you generate Go code from a protobuf file, the generated client struct is a Remote Proxy. `UserServiceClient.GetUser(ctx, req)` looks like a local method call. Under the hood it serializes `req` to protobuf, makes an HTTP/2 connection to the remote server, deserializes the response, and returns it. The network is completely hidden. That's a Remote Proxy.
 
+### 4. Remote Proxy in Go's Standard Library: `net/http/httputil.ReverseProxy`
+
+Go ships a production-ready Remote Proxy in its standard library: `httputil.ReverseProxy`. It implements `http.Handler`, transparently forwarding every incoming request to a backend origin. The caller sees one HTTP endpoint; the proxy silently talks to another machine — same interface, different host.
+
+```go
+package main
+
+import (
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+)
+
+func newReverseProxy(targetURL string) http.Handler {
+	origin, _ := url.Parse(targetURL)
+	return httputil.NewSingleHostReverseProxy(origin)
+}
+
+func main() {
+	// All traffic to :8080 is forwarded transparently to the backend at :9090
+	http.ListenAndServe(":8080", newReverseProxy("http://localhost:9090"))
+}
+```
+
+*`httputil.NewSingleHostReverseProxy` is the Go standard library's canonical Remote Proxy — it exposes an `http.Handler` interface while the real object lives on a different host.*
+
+For production use, set `ReverseProxy.Transport` to tune connection pool limits, and hook `ModifyResponse` or `ErrorHandler` for observability. This same primitive underlies Go-based API gateways (Traefik, Caddy) and many internal load balancers.
+
 ---
 
 ## 4. Gotchas
@@ -135,6 +163,18 @@ repo := NewProtectionProxy(realRepo, authorizer) // ✓
 
 // Bypass: caller directly constructs the real repo
 repo := NewPostgresUserRepository(db) // ✗ bypasses protection
+```
+
+The Go idiom to make bypass *impossible* by construction — keep the concrete type unexported and expose only a factory that returns the interface:
+
+```go
+// unexported: callers outside this package cannot instantiate it directly
+type postgresUserRepository struct{ db *sql.DB }
+
+// NewUserRepository always wires the protection proxy — bypass is impossible
+func NewUserRepository(db *sql.DB, auth Authorizer) UserRepository {
+	return NewProtectionProxy(&postgresUserRepository{db: db}, auth)
+}
 ```
 
 File a dependency injection requirement: the real implementation must not be exported, or the DI container must enforce that the proxy is always used. Otherwise, the protection proxy provides a false sense of security.
@@ -167,6 +207,34 @@ user, _ = proxy.GetUser(ctx, "123")   // BUG: still returns cached Role = "viewe
 
 The cache proxy only invalidates the cache in `SaveUser` for the exact key saved. But if another service updates the user directly, or if the cache TTL is too long, the proxy serves stale data. **Always invalidate the cache in every write path. Consider write-through caching for consistency.** For critical data (permissions, auth), use a short TTL or skip the cache entirely.
 
+### Gotcha 5: Cache Stampede on Hot Key Expiry
+
+When a popular key expires, every in-flight goroutine simultaneously sees a cache miss and thunders into the real repository. With 100 concurrent requests for `"celebrity-123"`, you get 100 parallel DB queries for the same row:
+
+```go
+// All 100 goroutines reach this line at the same moment after TTL expiry
+user, err := p.real.GetUser(ctx, id) // 100 simultaneous DB hits for one key
+```
+
+Fix: wrap the cache miss in a `singleflight.Group`. Regardless of how many goroutines call `GetUser` for the same key concurrently, only **one** real call is made; the rest wait and share the result:
+
+```go
+import "golang.org/x/sync/singleflight"
+
+var group singleflight.Group
+
+func (p *CachingProxy) GetUser(ctx context.Context, id string) (*User, error) {
+	if u := p.getCached(id); u != nil { return u, nil } // fast path
+	v, err, _ := group.Do(id, func() (any, error) { return p.real.GetUser(ctx, id) })
+	if err != nil { return nil, err }
+	u := v.(*User); p.setCached(id, u); return u, nil
+}
+```
+
+*`singleflight.Group.Do` coalesces all concurrent callers for the same key into one real call — the rest wait and share the result.*
+
+> 💡 **Staff-level insight:** `singleflight` eliminates the thundering herd for the *first* miss after expiry. For sustained hot-key load (celebrity profile, viral content), combine it with a **background refresh strategy**: refresh the cache entry *before* it expires so the key is never cold. This is how CDNs implement stale-while-revalidate.
+
 ---
 
 ## 5. Where to Use (and Where NOT to Use)
@@ -192,14 +260,14 @@ The cache proxy only invalidates the cache in `SaveUser` for the exact key saved
 
 ## 6. Versus (Comparisons)
 
-| Aspect                    | Proxy                                     | Decorator                    | Adapter                                 |
-| ------------------------- | ----------------------------------------- | ---------------------------- | --------------------------------------- |
-| Interface change          | No — same interface as real subject       | No — same interface          | Yes — translates to different interface |
-| Intent                    | Control access to real subject            | Add behavior to object       | Translate between interfaces            |
-| Knows about real subject? | Yes — manages it                          | Yes — wraps it               | Yes — wraps adaptee                     |
-| Composable chains?        | Rarely                                    | Yes — designed for stacking  | No                                      |
-| Typical uses              | Cache, lazy init, auth, remote            | Logging, tracing, rate limit | Legacy integration, ACL                 |
-| Can be both?              | Yes — a caching proxy is also a Decorator | Yes                          | No                                      |
+| Aspect                    | Proxy                                                                                                                                                                           | Decorator                    | Adapter                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------- |
+| Interface change          | No — same interface as real subject                                                                                                                                             | No — same interface          | Yes — translates to different interface |
+| Intent                    | Control access to real subject                                                                                                                                                  | Add behavior to object       | Translate between interfaces            |
+| Knows about real subject? | Yes — manages it                                                                                                                                                                | Yes — wraps it               | Yes — wraps adaptee                     |
+| Composable chains?        | Rarely                                                                                                                                                                          | Yes — designed for stacking  | No                                      |
+| Typical uses              | Cache, lazy init, auth, remote                                                                                                                                                  | Logging, tracing, rate limit | Legacy integration, ACL                 |
+| Can be both?              | Yes, structurally — but structural overlap ≠ intent overlap: Proxy manages access to *one specific* subject; Decorator adds reusable behavior to *any* subject of the same type | Yes                          | No                                      |
 
 **Choose Proxy when** you need to control access to a specific real object — lazy init, caching, protection, or hiding a remote call behind a local interface.
 
@@ -412,7 +480,7 @@ func (p *LazyProxy) SaveUser(ctx context.Context, user *User) error {
 
 2. **Study Envoy's retry and circuit breaking configuration** — read the Envoy proxy documentation on retry policies and outlier detection. Understanding what happens when a remote proxy retries adds precision to your service mesh conversations.
 
-3. **Implement a `singleflight`-based caching proxy** — Go's `golang.org/x/sync/singleflight` package prevents cache stampedes by coalescing concurrent requests for the same key into a single real call. Implementing this teaches you about concurrent access patterns at scale.
+3. **Study `singleflight` beyond the basics** — Gotcha 5 covers the core pattern. Extend it with a background-refresh strategy so hot keys never expire cold. Run `go test -bench` to compare naive miss, singleflight, and background-refresh latencies side by side.
 
 4. **Build a Protection Proxy for testing** — create a protection proxy that enforces different access rules based on a role in the context. Write tests that verify unauthorized access is blocked. This connects directly to how AWS IAM, Kubernetes RBAC, and OPA work.
 

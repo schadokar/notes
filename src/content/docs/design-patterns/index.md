@@ -3,4 +3,4 @@ title: Design Patterns
 description: Reusable solutions to common problems in software design.
 ---
 
-Explore software design patterns organized by type.
+Software design patterns organized by category: creational, structural, behavioral, and distributed.
