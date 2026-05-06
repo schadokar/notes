@@ -27,7 +27,8 @@ function sectionSegment(group: any): string {
 
 function sectionRoot(group: any): string {
   const seg = sectionSegment(group);
-  return seg ? `/${seg}/` : firstLink(group);
+  const base = import.meta.env.BASE_URL; // '/notes/'
+  return seg ? `${base}${seg}/` : firstLink(group);
 }
 
 const active =
