@@ -1,4 +1,4 @@
-.PHONY: dev build preview sync install clean git-push
+.PHONY: dev build preview sync install clean git-push deploy
 
 MSG ?= update
 
@@ -25,3 +25,7 @@ git-push:
 	git add .
 	git commit -m "$(MSG)"
 	git push
+
+deploy:
+	npm run build
+	cd dist && git init && git add . && git commit -m "$(MSG)" && git push -f origin HEAD:gh-pages
