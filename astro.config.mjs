@@ -25,7 +25,7 @@ export default defineConfig({
 		mermaid(), // ⚠️ Must come BEFORE starlight
 		starlight({
 			title: 'Schadokar Notes',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/schadokar/schadokar-notes' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/schadokar/notes' }],
 			sidebar: [
 				{
 					label: 'Design Patterns',
