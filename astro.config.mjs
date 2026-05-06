@@ -9,6 +9,8 @@ import './src/styles/zen-mode.css';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://schadokar.github.io',
+	base: 'notes',
 	markdown: {
 		remarkPlugins: [readingTimeRemarkPlugin],
 	},
