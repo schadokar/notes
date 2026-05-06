@@ -1,0 +1,1110 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-bguv2lll"> <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Advanced Database Selection and Staff Engineering Interview Guide | Schadokar Notes</title><link rel="canonical" href="https://schadokar.github.io/notes/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide/"/><link rel="sitemap" href="/notes/sitemap-index.xml"/><link rel="shortcut icon" href="/notes/favicon.svg" type="image/svg+xml"/><meta name="generator" content="Astro v6.1.7"/><meta name="generator" content="Starlight v0.38.3"/><meta property="og:title" content="Advanced Database Selection and Staff Engineering Interview Guide"/><meta property="og:type" content="article"/><meta property="og:url" content="https://schadokar.github.io/notes/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide/"/><meta property="og:locale" content="en"/><meta property="og:description" content="A staff-level guide to picking the right database: internals, trade-offs, gotchas, 10x/100x scale behavior, and complete interview prep for FAANG L6/L7."/><meta property="og:site_name" content="Schadokar Notes"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="A staff-level guide to picking the right database: internals, trade-offs, gotchas, 10x/100x scale behavior, and complete interview prep for FAANG L6/L7."/><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/notes/_astro/print.DNXP8c50.css" media="print"><link rel="stylesheet" href="/notes/_astro/middleware.CRIh-IFc.css">
+<link rel="stylesheet" href="/notes/_astro/Code.BcHZMqfA.css"><script type="module" src="/notes/_astro/page.qR1CXgzw.js"></script></head> <body class="astro-bguv2lll"> <a href="#_top" class="astro-7q3lir66">Skip to content</a> <div class="page sl-flex astro-vrdttmbt"> <header class="header astro-vrdttmbt"><div class="header astro-pe3pbc5a"> <div class="title-wrapper sl-flex astro-pe3pbc5a"> <a href="/notes/" class="site-title sl-flex astro-m46x6ez3">  <span class="astro-m46x6ez3" translate="no"> Schadokar Notes </span> </a> </div> <div class="sl-flex print:hidden astro-pe3pbc5a"> <site-search class=" astro-4npvrjzq" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}" data-mode="default" data-shortcuts="[]"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-4npvrjzq"> <svg aria-hidden="true" class="astro-4npvrjzq astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-4npvrjzq" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-4npvrjzq" style="display: none;"> <kbd class="astro-4npvrjzq">Ctrl</kbd><kbd class="astro-4npvrjzq">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-4npvrjzq"> <div class="dialog-frame sl-flex astro-4npvrjzq">  <button data-close-modal class="sl-flex md:sl-hidden astro-4npvrjzq"> Cancel </button> <div class="search-container astro-4npvrjzq"> <div id="starlight__search" class="astro-4npvrjzq"></div> </div> </div> </dialog> </site-search>  <script>
+  (() => {
+    const openBtn = document.querySelector("button[data-open-modal]");
+    const shortcut = openBtn?.querySelector("kbd");
+    if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+    const platformKey = shortcut.querySelector("kbd");
+    if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+      platformKey.textContent = "⌘";
+      openBtn.setAttribute("aria-keyshortcuts", "Meta+K");
+    }
+    shortcut.style.display = "";
+  })();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.qZjFznbc.js"></script>  </div> <div class="sl-hidden md:sl-flex print:hidden right-group astro-pe3pbc5a"> <div class="sl-flex social-icons astro-pe3pbc5a"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/zen-mode/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a><script type="module">function h(){const t=window.location.hash;document.querySelectorAll(".starlight-view-modes-switcher-a").forEach(e=>{e instanceof HTMLAnchorElement&&(e.href=e.href.split("#")[0]+t)})}h();window.addEventListener("hashchange",h);</script> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script> <script type="module">const r="starlight-theme",o=e=>e==="auto"||e==="dark"||e==="light"?e:"auto",c=()=>o(typeof localStorage<"u"&&localStorage.getItem(r));function n(e){typeof localStorage<"u"&&localStorage.setItem(r,e==="light"||e==="dark"?e:"")}const l=()=>matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";function t(e){StarlightThemeProvider.updatePickers(e),document.documentElement.dataset.theme=e==="auto"?l():e,n(e)}matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{c()==="auto"&&t("auto")});class s extends HTMLElement{constructor(){super(),t(c()),this.querySelector("select")?.addEventListener("change",a=>{a.currentTarget instanceof HTMLSelectElement&&t(o(a.currentTarget.value))})}}customElements.define("starlight-theme-select",s);</script> <script type="module">class s extends HTMLElement{constructor(){super();const e=this.querySelector("select");e&&(e.addEventListener("change",t=>{t.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=t.currentTarget.value)}),window.addEventListener("pageshow",t=>{if(!t.persisted)return;const n=e.querySelector("option[selected]")?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}}customElements.define("starlight-lang-select",s);</script> <button id="zen-mode-toggle" class="zen-mode-btn astro-hk5zd5ry" title="Zen Mode (Shift+Cmd+Z)" aria-label="Toggle zen mode"> <svg class="zen-mode-icon astro-hk5zd5ry" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <!-- Eye icon (normal state) --> <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" class="astro-hk5zd5ry"></path> <circle cx="12" cy="12" r="3" class="astro-hk5zd5ry"></circle> </svg> </button>  <script type="module">const o="zen-mode";function d(){return typeof window>"u"?!1:localStorage.getItem(o)==="true"}function c(e){typeof window>"u"||(localStorage.setItem(o,String(e)),r(e))}function i(){const e=d();c(!e)}function r(e){if(typeof document>"u")return;const t=document.documentElement;e?t.setAttribute("data-zen-mode","true"):t.removeAttribute("data-zen-mode")}function u(){if(typeof document>"u")return;const e=d();r(e)}u();const n=document.getElementById("zen-mode-toggle");n&&n.addEventListener("click",()=>{i()});document.addEventListener("keydown",e=>{(/Mac|iPhone|iPad|iPod/.test(navigator.platform)?e.metaKey:e.ctrlKey)&&e.shiftKey&&e.key==="Z"&&(e.preventDefault(),i())});</script> </div> </div></header> <nav class="sidebar print:hidden astro-vrdttmbt" aria-label="Main"> <starlight-menu-button class="print:hidden astro-jif73yzw"> <button aria-expanded="false" aria-label="Menu" aria-controls="starlight__sidebar" class="sl-flex md:sl-hidden astro-jif73yzw"> <svg aria-hidden="true" class="open-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg> <svg aria-hidden="true" class="close-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg> </button> </starlight-menu-button> <script type="module">class s extends HTMLElement{constructor(){super(),this.btn=this.querySelector("button"),this.btn.addEventListener("click",()=>this.toggleExpanded());const t=this.closest("nav");t&&t.addEventListener("keyup",e=>this.closeOnEscape(e))}setExpanded(t){this.setAttribute("aria-expanded",String(t)),document.body.toggleAttribute("data-mobile-menu-expanded",t)}toggleExpanded(){this.setExpanded(this.getAttribute("aria-expanded")!=="true")}closeOnEscape(t){t.code==="Escape"&&(this.setExpanded(!1),this.btn.focus())}}customElements.define("starlight-menu-button",s);</script>  <div id="starlight__sidebar" class="sidebar-pane astro-vrdttmbt"> <div class="sidebar-content sl-flex astro-vrdttmbt"> <div class="sidebar-search astro-6p6o3epk"> <site-search class="astro-6p6o3epk astro-v37mnknz" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-v37mnknz"> <svg aria-hidden="true" class="astro-v37mnknz astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-v37mnknz" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-v37mnknz" style="display: none;"> <kbd class="astro-v37mnknz">Ctrl</kbd><kbd class="astro-v37mnknz">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-v37mnknz"> <div class="dialog-frame sl-flex astro-v37mnknz">  <button data-close-modal class="sl-flex md:sl-hidden astro-v37mnknz"> Cancel </button> <div class="search-container astro-v37mnknz"> <div id="starlight__search" class="astro-v37mnknz"></div> </div> </div> </dialog> </site-search>  <script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.D2LyzZw5.js"></script>  </div> <nav class="section-switcher astro-6p6o3epk" aria-label="Sections"> <a href="/notes/" class="section-tab active astro-6p6o3epk"> Design Patterns </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Distributed Systems </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Notes </a> </nav> <sl-sidebar-state-persist data-hash="0ffdke8" class="astro-kku4brbg"> <script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script>  <ul class="top-level astro-3ii7xxms"> <li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">distributed</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="0"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/circuit-breaker/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Circuit Breaker Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/saga/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Saga Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/outbox-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Transactional Outbox Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/cqrs/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">CQRS (Command Query Responsibility Segregation): A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/event-sourcing/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Event Sourcing: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/bulkhead/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bulkhead Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/retry-with-backoff/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Retry with Exponential Backoff: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/strangler-fig/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strangler Fig Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/sidecar/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Sidecar Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/repository/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Repository Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">behavioral</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="1"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/observer-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Observer Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/strategy-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strategy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/command-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Command Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/chain-of-responsibility-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Chain of Responsibility Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/state-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">State Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/template-method-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Template Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/iterator-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Iterator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">structural</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="2"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/decorator/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Decorator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/adapter/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Adapter Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/proxy/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Proxy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/facade/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Facade Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/composite/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Composite Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/bridge/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bridge Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">creational</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="3"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/singleton/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Singleton Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/factory-method/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Factory Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/builder/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Builder Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/abstract-factory/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Abstract Factory Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/prototype/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Prototype Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/" class="large astro-3ii7xxms"> <span class="astro-3ii7xxms">Design Patterns</span>  </a> </li> </ul>  <script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script> </sl-sidebar-state-persist> <div class="md:sl-hidden astro-6p6o3epk"> <div class="mobile-preferences sl-flex astro-wu23bvmt"> <div class="social-icons astro-wu23bvmt"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/zen-mode/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script>   </div> </div> </div> </div> </nav> <div class="main-frame astro-vrdttmbt">  <script type="module">const a=document.getElementById("starlight__sidebar"),n=a?.querySelector("sl-sidebar-state-persist"),o="sl-sidebar-state",i=()=>{let t=[];const e=n?.dataset.hash||"";try{const s=sessionStorage.getItem(o),r=JSON.parse(s||"{}");Array.isArray(r.open)&&r.hash===e&&(t=r.open)}catch{}return{hash:e,open:t,scroll:a?.scrollTop||0}},c=t=>{try{sessionStorage.setItem(o,JSON.stringify(t))}catch{}},d=()=>c(i()),l=(t,e)=>{const s=i();s.open[e]=t,c(s)};n?.addEventListener("click",t=>{if(!(t.target instanceof Element))return;const e=t.target.closest("summary")?.closest("details");if(!e)return;const s=e.querySelector("sl-sidebar-restore"),r=parseInt(s?.dataset.index||"");isNaN(r)||l(!e.open,r)});addEventListener("visibilitychange",()=>{document.visibilityState==="hidden"&&d()});addEventListener("pageHide",d);</script> <div class="lg:sl-flex astro-67yu43on"> <aside class="right-sidebar-container print:hidden astro-67yu43on"> <div class="right-sidebar astro-67yu43on"> <div class="lg:sl-hidden astro-pb3aqygn"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-doynk5tl"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-doynk5tl"><details id="starlight__mobile-toc" class="astro-doynk5tl"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-doynk5tl"><span class="toggle sl-flex astro-doynk5tl">On this page<svg aria-hidden="true" class="caret astro-doynk5tl astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></span><span class="display-current astro-doynk5tl"></span></summary><div class="dropdown astro-doynk5tl"><ul class="isMobile astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#1-overview" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">1. Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-the-data-structures-that-drive-everything" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts: The Data Structures That Drive Everything</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#21-b-trees-the-workhorse-of-oltp" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.1 B-Trees: The Workhorse of OLTP</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#22-lsm-trees-the-write-machine" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.2 LSM Trees: The Write Machine</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#23-inverted-indexes-the-engine-behind-search" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.3 Inverted Indexes: The Engine Behind Search</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#24-r-trees-and-postgis-spatial-queries" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.4 R-Trees and PostGIS: Spatial Queries</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#25-hnsw-vector-search-for-ai-native-applications" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.5 HNSW: Vector Search for AI-Native Applications</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#26-columnar-storage-olap-at-speed" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.6 Columnar Storage: OLAP at Speed</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#27-graph-storage-adjacency-lists-vs-index-free-adjacency" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.7 Graph Storage: Adjacency Lists vs. Index-Free Adjacency</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases-access-patterns--database-choice" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases: Access Patterns → Database Choice</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas-what-bites-you-in-production" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas: What Bites You in Production</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#41-postgresql-vacuum-and-xid-wraparound" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.1 PostgreSQL: VACUUM and XID Wraparound</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#42-cassandra-tombstone-accumulation" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.2 Cassandra: Tombstone Accumulation</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#43-redis-hot-keys-and-cluster-resharding" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.3 Redis: Hot Keys and Cluster Resharding</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#44-elasticsearch-mapping-explosions" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.4 Elasticsearch: Mapping Explosions</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#45-dynamodb-hot-partitions-and-the-adaptive-capacity-delay" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.5 DynamoDB: Hot Partitions and the Adaptive Capacity Delay</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#46-pgvector-recall-degradation-at-scale" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.6 pgvector: Recall Degradation at Scale</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus-head-to-head-comparisons" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus: Head-to-Head Comparisons</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#61-postgresql-vs-dynamodb" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.1 PostgreSQL vs. DynamoDB</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#62-cassandra-vs-scylladb-the-discord-migration-story" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.2 Cassandra vs. ScyllaDB (The Discord Migration Story)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#63-pgvector-vs-pinecone-vs-milvus" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.3 pgvector vs. Pinecone vs. Milvus</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#64-redis-vs-memcached" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.4 Redis vs. Memcached</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#65-aurora-vs-rds-postgresql-vs-vitess" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.5 Aurora vs. RDS PostgreSQL vs. Vitess</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-zero-downtime-migration-playbook" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. Zero-Downtime Migration Playbook</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-monitoring--observability-what-to-look-at-first-at-3-am" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. Monitoring &amp; Observability: What to Look at First at 3 AM</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#postgresql" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">PostgreSQL</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#cassandra--scylladb" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Cassandra / ScyllaDB</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#elasticsearch" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Elasticsearch</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-scale-where-each-database-breaks" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Scale: Where Each Database Breaks</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#10-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">10. Interview Questions</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-consolidation-vs-specialization" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: Consolidation vs. Specialization</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-zero-downtime-migration" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: Zero-Downtime Migration</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-hot-partitions" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: Hot Partitions</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-storage-compute-separation" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: Storage-Compute Separation</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-real-time-analytics-oltp--olap" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: Real-Time Analytics (OLTP → OLAP)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q6-cap-theorem-applied" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q6: CAP Theorem Applied</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q7-multi-region-active-active" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q7: Multi-Region Active-Active</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q8-consistency-models" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q8: Consistency Models</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#11-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">11. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#12-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">12. Staff-Level Preparation Tips</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-build" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Build</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#how-to-demonstrate-staff-level-thinking-in-interviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">How to Demonstrate Staff-Level Thinking in Interviews</span> </a>  </li> </ul> </li> </ul></div></details></nav></mobile-starlight-toc><script type="module" src="/notes/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.hwBsy0Mo.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-pb3aqygn"><div class="sl-container astro-pb3aqygn"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#1-overview" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">1. Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-the-data-structures-that-drive-everything" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts: The Data Structures That Drive Everything</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#21-b-trees-the-workhorse-of-oltp" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.1 B-Trees: The Workhorse of OLTP</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#22-lsm-trees-the-write-machine" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.2 LSM Trees: The Write Machine</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#23-inverted-indexes-the-engine-behind-search" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.3 Inverted Indexes: The Engine Behind Search</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#24-r-trees-and-postgis-spatial-queries" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.4 R-Trees and PostGIS: Spatial Queries</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#25-hnsw-vector-search-for-ai-native-applications" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.5 HNSW: Vector Search for AI-Native Applications</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#26-columnar-storage-olap-at-speed" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.6 Columnar Storage: OLAP at Speed</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#27-graph-storage-adjacency-lists-vs-index-free-adjacency" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.7 Graph Storage: Adjacency Lists vs. Index-Free Adjacency</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases-access-patterns--database-choice" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases: Access Patterns → Database Choice</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas-what-bites-you-in-production" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas: What Bites You in Production</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#41-postgresql-vacuum-and-xid-wraparound" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.1 PostgreSQL: VACUUM and XID Wraparound</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#42-cassandra-tombstone-accumulation" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.2 Cassandra: Tombstone Accumulation</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#43-redis-hot-keys-and-cluster-resharding" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.3 Redis: Hot Keys and Cluster Resharding</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#44-elasticsearch-mapping-explosions" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.4 Elasticsearch: Mapping Explosions</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#45-dynamodb-hot-partitions-and-the-adaptive-capacity-delay" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.5 DynamoDB: Hot Partitions and the Adaptive Capacity Delay</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#46-pgvector-recall-degradation-at-scale" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">4.6 pgvector: Recall Degradation at Scale</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus-head-to-head-comparisons" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus: Head-to-Head Comparisons</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#61-postgresql-vs-dynamodb" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.1 PostgreSQL vs. DynamoDB</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#62-cassandra-vs-scylladb-the-discord-migration-story" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.2 Cassandra vs. ScyllaDB (The Discord Migration Story)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#63-pgvector-vs-pinecone-vs-milvus" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.3 pgvector vs. Pinecone vs. Milvus</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#64-redis-vs-memcached" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.4 Redis vs. Memcached</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#65-aurora-vs-rds-postgresql-vs-vitess" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">6.5 Aurora vs. RDS PostgreSQL vs. Vitess</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-zero-downtime-migration-playbook" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. Zero-Downtime Migration Playbook</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-monitoring--observability-what-to-look-at-first-at-3-am" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. Monitoring &amp; Observability: What to Look at First at 3 AM</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#postgresql" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">PostgreSQL</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#cassandra--scylladb" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Cassandra / ScyllaDB</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#elasticsearch" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Elasticsearch</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-scale-where-each-database-breaks" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Scale: Where Each Database Breaks</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#10-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">10. Interview Questions</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-consolidation-vs-specialization" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: Consolidation vs. Specialization</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-zero-downtime-migration" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: Zero-Downtime Migration</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-hot-partitions" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: Hot Partitions</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-storage-compute-separation" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: Storage-Compute Separation</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-real-time-analytics-oltp--olap" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: Real-Time Analytics (OLTP → OLAP)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q6-cap-theorem-applied" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q6: CAP Theorem Applied</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q7-multi-region-active-active" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q7: Multi-Region Active-Active</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q8-consistency-models" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q8: Consistency Models</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#11-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">11. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#12-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">12. Staff-Level Preparation Tips</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-build" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Build</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#how-to-demonstrate-staff-level-thinking-in-interviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">How to Demonstrate Staff-Level Thinking in Interviews</span> </a>  </li> </ul> </li> </ul></nav></starlight-toc><script type="module" src="/notes/_astro/TableOfContents.astro_astro_type_script_index_0_lang.FuRcXuRY.js"></script> <div class="starlight-view-modes-table-of-contents-container astro-ycta3xxa"><h2 class="astro-ycta3xxa">View Modes</h2><ul class="astro-ycta3xxa"><li class="starlight-view-modes-table-of-contents-item astro-ycta3xxa"><a href="/notes/zen-mode/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide" class="starlight-view-modes-switcher-a astro-ycta3xxa">Switch to Zen Mode</a><script>
+  (() => {
+    const shortcuts = document.querySelectorAll("kbd:has(kbd)");
+    for (const shortcut of shortcuts) {
+      if (!(shortcut instanceof HTMLElement)) return;
+      const platformKeys = shortcut.querySelectorAll("kbd");
+      for (const platformKey of platformKeys) {
+        if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+          platformKey.textContent = platformKey.textContent
+            .replace("Ctrl", "⌘")
+            .replace("Shift", "⇧")
+            .replace("Alt", "⌥");
+        }
+      }
+      shortcut.style.display = "";
+    }
+  })();
+</script></li></ul></div></div></div> </div> </aside> <div class="main-pane astro-67yu43on">  <main data-pagefind-body class="astro-bguv2lll" lang="en" dir="ltr">    <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <h1 id="_top" class="astro-j6tvhyss">Advanced Database Selection and Staff Engineering Interview Guide</h1> <div class="starlight-view-modes-page-title-switcher astro-uvozaax5"> <a href="/notes/zen-mode/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a> </div>  </div> </div> <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <div class="sl-markdown-content"> <div class="sl-heading-wrapper level-h2"><h2 id="1-overview">1. Overview</h2><a class="sl-anchor-link" href="#1-overview"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “1. Overview”</span></a></div>
+<p>Every staff-level system design interview eventually comes down to the same moment: you’ve described a service, drawn some boxes, and then the interviewer asks: <em>“What database are you using — and why?”</em></p>
+<p>The wrong answer is a brand name. The right answer starts with your access patterns.</p>
+<p>This guide teaches you to select databases the way engineers at Google, Uber, and Discord do: by understanding the data structures underneath, the failure modes in production, and the trade-offs that don’t appear in vendor documentation. By the end, you’ll know how LSM trees give Cassandra its write throughput, why Discord migrated away from Cassandra to ScyllaDB (it wasn’t about features), how to execute a zero-downtime 50TB migration, and how to give a model answer to every database question asked at L6/L7 FAANG interviews.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="2-core-concepts-the-data-structures-that-drive-everything">2. Core Concepts: The Data Structures That Drive Everything</h2><a class="sl-anchor-link" href="#2-core-concepts-the-data-structures-that-drive-everything"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2. Core Concepts: The Data Structures That Drive Everything”</span></a></div>
+<p>The most important insight about databases is this: <strong>a database is a data structure with a network API.</strong> Every performance characteristic — write throughput, read latency, range scan cost, space amplification — flows directly from the underlying data structure. Learn the structure and you can derive the behavior from first principles in an interview room without memorizing benchmarks.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="21-b-trees-the-workhorse-of-oltp">2.1 B-Trees: The Workhorse of OLTP</h3><a class="sl-anchor-link" href="#21-b-trees-the-workhorse-of-oltp"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.1 B-Trees: The Workhorse of OLTP”</span></a></div>
+<p>B-trees are the default storage structure for PostgreSQL, MySQL InnoDB, and Oracle. Every leaf page is ~8 KB (Postgres default). A write updates the page in-place, acquires a write lock, and journals the change in the WAL (Write-Ahead Log) for durability.</p>
+<p><strong>Mental model:</strong> A B-tree is like a sorted filing cabinet. Reading a record means navigating the cabinet from the top drawer down. Updating means opening the drawer, finding the paper, and modifying it in place — fast for random point reads, but expensive for write-heavy workloads because random page updates cause random I/O.</p>
+<p><strong>Where it breaks:</strong> At ~50k–100k writes/sec sustained on commodity hardware, B-tree page splits and lock contention become the bottleneck. When Instagram was growing to 50 million users in 2012, their single Postgres instance needed read replicas and table partitioning to survive the write pressure before they eventually moved some workloads off it.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="22-lsm-trees-the-write-machine">2.2 LSM Trees: The Write Machine</h3><a class="sl-anchor-link" href="#22-lsm-trees-the-write-machine"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.2 LSM Trees: The Write Machine”</span></a></div>
+<p>Log-Structured Merge trees (used by Cassandra, ScyllaDB, RocksDB, LevelDB, TiKV) trade read performance for extraordinary write throughput by making every write sequential. Here’s the path a write takes:</p>
+<div class="expressive-code"><link rel="stylesheet" href="/notes/_astro/ec.xvy5v.css"><script type="module" src="/notes/_astro/ec.0vx5m.js"></script><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">Write → memtable (in-memory sorted buffer, e.g. a red-black tree)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292e;--1:#e1e4e8">      </span></span><span style="--0:#24292e;--1:#e1e4e8">→ WAL (for crash recovery — written first)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">Flush → immutable SSTable file on disk when memtable hits size threshold</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">Background → compaction: merge + sort + deduplicate SSTables across levels</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="Write → memtable (in-memory sorted buffer, e.g. a red-black tree)      → WAL (for crash recovery — written first)Flush → immutable SSTable file on disk when memtable hits size thresholdBackground → compaction: merge + sort + deduplicate SSTables across levels"><div></div></button></div></figure></div>
+<pre class="mermaid">flowchart TD
+    W[Write Request] --> WAL[WAL\nwrite-ahead log\ncrash recovery]
+    W --> M[Memtable\nin-memory sorted map]
+    M -->|flush when full ~64MB| L0[L0 SSTables\nsmallest newest files]
+    L0 -->|compaction trigger| L1[L1 SSTables]
+    L1 -->|compaction trigger| L2[L2 SSTables]
+    L2 -->|compaction trigger| LN[L-N SSTables\nlargest oldest data]
+
+    R[Read Request] --> BF[Bloom Filter\nis this key present?]
+    BF -->|maybe| M
+    BF -->|maybe| L0
+    BF -->|maybe| LN
+
+    style M fill:#4a90e2,color:#fff
+    style WAL fill:#e24a4a,color:#fff
+    style BF fill:#27ae60,color:#fff</pre>
+<p><em>LSM tree write path: writes hit memory first and are sequentially flushed to immutable SSTables. Bloom filters (one per SSTable) short-circuit most negative reads so you don’t scan every level for a missing key.</em></p>
+<p><strong>Three compaction strategies — pick based on your workload:</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Strategy</th><th>Full Name</th><th>Best For</th><th>Key Trade-off</th></tr></thead><tbody><tr><td>STCS</td><td>Size-Tiered Compaction</td><td>Write-heavy, few reads</td><td>High space amplification (~2x disk usage)</td></tr><tr><td>LCS</td><td>Leveled Compaction</td><td>Read-heavy, mixed workload</td><td>High write amplification (~10–30x)</td></tr><tr><td>TWCS</td><td>Time-Window Compaction</td><td>Time-series data with TTLs</td><td>Only correct when writes are time-ordered</td></tr></tbody></table>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Write amplification is the hidden cost of LSM trees. In LCS, a single logical write may result in 10–30 physical disk writes after compaction cascades through levels. At Spotify, engineers discovered their Cassandra cluster was writing ~15x more bytes than application-level metrics showed — burning through SSD write endurance 15x faster than modeled. Always instrument <code dir="auto">compaction_bytes_written</code> alongside your application write rate metrics. The delta is your write amplification factor.</p>
+</blockquote>
+<p><strong>Read performance:</strong> A read in an LSM system must check the memtable, then potentially every SSTable level. Bloom filters eliminate most false positives, but a non-existent key still touches all levels. Deleted records leave a <strong>tombstone</strong> (see Section 4 Gotchas) that must be scanned over on every read until compaction removes it. This is why Cassandra’s worst-case reads are slow on delete-heavy tables.</p>
+<p><strong>Go snippet — tunable consistency write with the Cassandra Go driver:</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">package</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">import</span><span style="--0:#24292E;--1:#E1E4E8"> (</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">fmt</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">log</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/gocql/gocql</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span><span style="--0:#24292E;--1:#E1E4E8">() {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">cluster </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> gocql.</span><span style="--0:#6F42C1;--1:#B392F0">NewCluster</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"cassandra-node-1"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"cassandra-node-2"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"cassandra-node-3"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">cluster.Keyspace </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">"user_events"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Consistency: QUORUM requires (RF/2 + 1) replicas to ack.</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Use LOCAL_QUORUM in multi-DC to avoid cross-DC latency on every write.</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Use ONE only for non-critical counters where you can tolerate data loss.</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">cluster.Consistency </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> gocql.LocalQuorum</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">session, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> cluster.</span><span style="--0:#6F42C1;--1:#B392F0">CreateSession</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">log.</span><span style="--0:#6F42C1;--1:#B392F0">Fatalf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"failed to connect: </span><span style="--0:#005CC5;--1:#79B8FF">%v</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">defer</span><span style="--0:#24292E;--1:#E1E4E8"> session.</span><span style="--0:#6F42C1;--1:#B392F0">Close</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Cassandra writes are O(1) regardless of row size — no read-before-write,</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// just an append to the memtable + WAL. TTL of 30 days avoids tombstone buildup.</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">err </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> session.</span><span style="--0:#6F42C1;--1:#B392F0">Query</span><span style="--0:#24292E;--1:#E1E4E8">(</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">`INSERT INTO events (user_id, event_time, action) VALUES (?, ?, ?) USING TTL 2592000`</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"user-123"</span><span style="--0:#24292E;--1:#E1E4E8">, gocql.</span><span style="--0:#6F42C1;--1:#B392F0">TimeUUID</span><span style="--0:#24292E;--1:#E1E4E8">(), </span><span style="--0:#032F62;--1:#9ECBFF">"page_view"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">log.</span><span style="--0:#6F42C1;--1:#B392F0">Fatalf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"write failed: </span><span style="--0:#005CC5;--1:#79B8FF">%v</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Println</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"write ok"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="package mainimport (  &#x22;fmt&#x22;  &#x22;log&#x22;  &#x22;github.com/gocql/gocql&#x22;)func main() {  cluster := gocql.NewCluster(&#x22;cassandra-node-1&#x22;, &#x22;cassandra-node-2&#x22;, &#x22;cassandra-node-3&#x22;)  cluster.Keyspace = &#x22;user_events&#x22;  // Consistency: QUORUM requires (RF/2 + 1) replicas to ack.  // Use LOCAL_QUORUM in multi-DC to avoid cross-DC latency on every write.  // Use ONE only for non-critical counters where you can tolerate data loss.  cluster.Consistency = gocql.LocalQuorum  session, err := cluster.CreateSession()  if err != nil {    log.Fatalf(&#x22;failed to connect: %v&#x22;, err)  }  defer session.Close()  // Cassandra writes are O(1) regardless of row size — no read-before-write,  // just an append to the memtable + WAL. TTL of 30 days avoids tombstone buildup.  err = session.Query(    &#x60;INSERT INTO events (user_id, event_time, action) VALUES (?, ?, ?) USING TTL 2592000&#x60;,    &#x22;user-123&#x22;, gocql.TimeUUID(), &#x22;page_view&#x22;,  ).Exec()  if err != nil {    log.Fatalf(&#x22;write failed: %v&#x22;, err)  }  fmt.Println(&#x22;write ok&#x22;)}"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="23-inverted-indexes-the-engine-behind-search">2.3 Inverted Indexes: The Engine Behind Search</h3><a class="sl-anchor-link" href="#23-inverted-indexes-the-engine-behind-search"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.3 Inverted Indexes: The Engine Behind Search”</span></a></div>
+<p>Elasticsearch and OpenSearch use inverted indexes for full-text search. The structure maps every unique term to the sorted list of documents containing it:</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">Term Dictionary     Postings List</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">──────────────────────────────────</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">"kafka"          →  [doc3, doc7, doc12, doc19]</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">"stream"         →  [doc1, doc3, doc7]</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">"consumer"       →  [doc3, doc5, doc7]</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">"group"          →  [doc2, doc3, doc9]</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="Term Dictionary     Postings List──────────────────────────────────&#x22;kafka&#x22;          →  [doc3, doc7, doc12, doc19]&#x22;stream&#x22;         →  [doc1, doc3, doc7]&#x22;consumer&#x22;       →  [doc3, doc5, doc7]&#x22;group&#x22;          →  [doc2, doc3, doc9]"><div></div></button></div></figure></div>
+<p>A query for <code dir="auto">"kafka consumer"</code> becomes: intersect the posting lists for “kafka” and “consumer” → <code dir="auto">[doc3, doc7]</code>. This intersection is fast because both lists are sorted — it’s a linear merge, not a scan.</p>
+<p><strong>BM25 (Best Match 25)</strong> is the default ranking function. It scores documents by term frequency (TF) normalized by document length, weighted by inverse document frequency (IDF — rarer terms get higher weight). In practice: a document containing “kafka” 10 times scores higher than one containing it once, but not 10x higher (TF is log-scaled).</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Elasticsearch is often architecturally used as a read-model cache, not a primary store. The real data lives in Postgres; Elasticsearch is synced via CDC or dual writes. Many teams discover this design decision was implicit — they never made it explicit — and discover it when Elasticsearch falls behind during a full reindex and the search API starts returning 3-day-old results. Always design your Elasticsearch pipeline with a documented source-of-truth and a tested catch-up reindex procedure. Know your reindex time for your data volume before you need to do it at 2 AM.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="24-r-trees-and-postgis-spatial-queries">2.4 R-Trees and PostGIS: Spatial Queries</h3><a class="sl-anchor-link" href="#24-r-trees-and-postgis-spatial-queries"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.4 R-Trees and PostGIS: Spatial Queries”</span></a></div>
+<p>An R-tree partitions 2D space into hierarchically nested bounding rectangles. A query like “find all drivers within 5 km of lat/lng X,Y” navigates the tree top-down, pruning any branch whose bounding box doesn’t intersect the search circle.</p>
+<p><strong>Real-world scale:</strong> Uber’s dispatch system uses a spatial index to find available drivers for each rider. At peak (6 million concurrent trips globally), a naïve O(N) scan of all driver locations is impossible — 6 million comparisons per dispatch request at thousands of dispatches per second. The R-tree reduces each query from 6M candidates to ~50 in under a millisecond.</p>
+<p>PostgreSQL with PostGIS uses <strong>GiST</strong> (Generalized Search Tree) as the index type — a framework that generalizes B-trees for non-Euclidean search spaces, including geometries, ranges, and full-text.</p>
+<p><strong>Redis alternative:</strong> For simpler use cases (radius queries, no polygon intersections), Redis <code dir="auto">GEOADD</code> / <code dir="auto">GEORADIUS</code> stores coordinates in a sorted set using geohash encoding. Simpler to operate than PostGIS, but lacks polygon queries and topological predicates.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">package</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">import</span><span style="--0:#24292E;--1:#E1E4E8"> (</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">fmt</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/redis/go-redis/v9</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">findNearbyDrivers</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">rdb</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Client</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">lat</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">lng</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">float64</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Redis GEO uses geohash internally — stored in a sorted set.</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// GEORADIUS is O(N+log(M)) where N = matches, M = total items in the set.</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">results, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">GeoRadius</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"drivers:online"</span><span style="--0:#24292E;--1:#E1E4E8">, lng, lat, </span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">GeoRadiusQuery</span><span style="--0:#24292E;--1:#E1E4E8">{</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">Radius:   </span><span style="--0:#005CC5;--1:#79B8FF">5</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">Unit:     </span><span style="--0:#032F62;--1:#9ECBFF">"km"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">WithDist: </span><span style="--0:#005CC5;--1:#79B8FF">true</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">Count:    </span><span style="--0:#005CC5;--1:#79B8FF">50</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">Sort:     </span><span style="--0:#032F62;--1:#9ECBFF">"ASC"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#6F42C1;--1:#B392F0">panic</span><span style="--0:#24292E;--1:#E1E4E8">(err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">for</span><span style="--0:#24292E;--1:#E1E4E8"> _, r </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">range</span><span style="--0:#24292E;--1:#E1E4E8"> results {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Printf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"driver=</span><span style="--0:#005CC5;--1:#79B8FF">%s</span><span style="--0:#032F62;--1:#9ECBFF"> dist=</span><span style="--0:#005CC5;--1:#79B8FF">%.2f</span><span style="--0:#032F62;--1:#9ECBFF">km</span><span style="--0:#005CC5;--1:#79B8FF">\n</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, r.Name, r.Dist)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="package mainimport (  &#x22;context&#x22;  &#x22;fmt&#x22;  &#x22;github.com/redis/go-redis/v9&#x22;)func findNearbyDrivers(ctx context.Context, rdb *redis.Client, lat, lng float64) {  // Redis GEO uses geohash internally — stored in a sorted set.  // GEORADIUS is O(N+log(M)) where N = matches, M = total items in the set.  results, err := rdb.GeoRadius(ctx, &#x22;drivers:online&#x22;, lng, lat, &#x26;redis.GeoRadiusQuery{    Radius:   5,    Unit:     &#x22;km&#x22;,    WithDist: true,    Count:    50,    Sort:     &#x22;ASC&#x22;,  }).Result()  if err != nil {    panic(err)  }  for _, r := range results {    fmt.Printf(&#x22;driver=%s dist=%.2fkm\n&#x22;, r.Name, r.Dist)  }}"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="25-hnsw-vector-search-for-ai-native-applications">2.5 HNSW: Vector Search for AI-Native Applications</h3><a class="sl-anchor-link" href="#25-hnsw-vector-search-for-ai-native-applications"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.5 HNSW: Vector Search for AI-Native Applications”</span></a></div>
+<p>Hierarchical Navigable Small World (HNSW) is the algorithm behind pgvector, Milvus, Weaviate, and Pinecone. It builds a layered proximity graph: upper layers have sparse long-range connections for fast navigation; lower layers have dense short-range connections for precise recall.</p>
+<pre class="mermaid">graph TD
+    subgraph "Layer 2 — sparse long-range connections"
+        A2((A)) --- E2((E))
+        E2 --- J2((J))
+    end
+    subgraph "Layer 1 — medium density"
+        A1((A)) --- C1((C))
+        C1 --- E1((E))
+        E1 --- H1((H))
+        H1 --- J1((J))
+    end
+    subgraph "Layer 0 — full proximity graph"
+        A0((A)) --- B0((B))
+        B0 --- C0((C))
+        C0 --- D0((D))
+        D0 --- E0((E))
+        E0 --- F0((F))
+        F0 --- G0((G))
+        G0 --- H0((H))
+        H0 --- I0((I))
+        I0 --- J0((J))
+    end</pre>
+<p><em>HNSW layered graph: a query enters at Layer 2 and navigates to the approximate neighborhood quickly via long-range edges, then descends through layers for precise nearest-neighbor retrieval.</em></p>
+<p><strong>Key tuning knobs:</strong></p>
+<ul>
+<li><code dir="auto">ef_construction</code> — neighbors examined during index build. Higher = better recall, slower index build.</li>
+<li><code dir="auto">m</code> — bidirectional links per node. Higher = better recall, more memory (<code dir="auto">m × 8 bytes × N vectors</code>).</li>
+<li><code dir="auto">ef_search</code> — neighbors checked at query time. The runtime recall/latency dial — increase without rebuilding the index.</li>
+</ul>
+<p><strong>Go snippet — pgvector semantic nearest-neighbor search:</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">package</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">import</span><span style="--0:#24292E;--1:#E1E4E8"> (</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">fmt</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">log</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/jackc/pgx/v5</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">pgvector </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/pgvector/pgvector-go</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">findSimilarDocuments</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">conn</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">pgx</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Conn</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">queryEmbedding</span><span style="--0:#24292E;--1:#E1E4E8"> []</span><span style="--0:#BF3441;--1:#F97583">float32</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// &#x3C;=> is cosine distance. Use for normalized embeddings (OpenAI, Cohere).</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// &#x3C;-> is L2 (Euclidean) distance. Use for raw, un-normalized embeddings.</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#616972;--1:#99A0A6">// Bump ef_search per-session for higher recall at the cost of latency.</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> conn.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"SET LOCAL hnsw.ef_search = 100"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">log.</span><span style="--0:#6F42C1;--1:#B392F0">Fatalf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"set ef_search: </span><span style="--0:#005CC5;--1:#79B8FF">%v</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">rows, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> conn.</span><span style="--0:#6F42C1;--1:#B392F0">Query</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">`</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">SELECT id, content, embedding &#x3C;=> $1 AS distance</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">FROM documents</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">ORDER BY embedding &#x3C;=> $1</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">LIMIT 10</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">  </span></span><span style="--0:#032F62;--1:#9ECBFF">`</span><span style="--0:#24292E;--1:#E1E4E8">, pgvector.</span><span style="--0:#6F42C1;--1:#B392F0">NewVector</span><span style="--0:#24292E;--1:#E1E4E8">(queryEmbedding))</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">log.</span><span style="--0:#6F42C1;--1:#B392F0">Fatalf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"query failed: </span><span style="--0:#005CC5;--1:#79B8FF">%v</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">defer</span><span style="--0:#24292E;--1:#E1E4E8"> rows.</span><span style="--0:#6F42C1;--1:#B392F0">Close</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">for</span><span style="--0:#24292E;--1:#E1E4E8"> rows.</span><span style="--0:#6F42C1;--1:#B392F0">Next</span><span style="--0:#24292E;--1:#E1E4E8">() {</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">var</span><span style="--0:#24292E;--1:#E1E4E8"> id </span><span style="--0:#BF3441;--1:#F97583">int</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">var</span><span style="--0:#24292E;--1:#E1E4E8"> content </span><span style="--0:#BF3441;--1:#F97583">string</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">var</span><span style="--0:#24292E;--1:#E1E4E8"> distance </span><span style="--0:#BF3441;--1:#F97583">float64</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rows.</span><span style="--0:#6F42C1;--1:#B392F0">Scan</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#24292E;--1:#E1E4E8">id, </span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#24292E;--1:#E1E4E8">content, </span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#24292E;--1:#E1E4E8">distance); err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">      </span></span><span style="--0:#24292E;--1:#E1E4E8">log.</span><span style="--0:#6F42C1;--1:#B392F0">Fatal</span><span style="--0:#24292E;--1:#E1E4E8">(err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Printf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"id=</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF"> distance=</span><span style="--0:#005CC5;--1:#79B8FF">%.4f</span><span style="--0:#032F62;--1:#9ECBFF"> snippet=</span><span style="--0:#005CC5;--1:#79B8FF">%q\n</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, id, distance, content[:</span><span style="--0:#6F42C1;--1:#B392F0">min</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#005CC5;--1:#79B8FF">50</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#6F42C1;--1:#B392F0">len</span><span style="--0:#24292E;--1:#E1E4E8">(content))])</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">min</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">a</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">b</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">int</span><span style="--0:#24292E;--1:#E1E4E8">) </span><span style="--0:#BF3441;--1:#F97583">int</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> a </span><span style="--0:#BF3441;--1:#F97583">&#x3C;</span><span style="--0:#24292E;--1:#E1E4E8"> b {</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> a</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">  </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> b</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="package mainimport (  &#x22;context&#x22;  &#x22;fmt&#x22;  &#x22;log&#x22;  &#x22;github.com/jackc/pgx/v5&#x22;  pgvector &#x22;github.com/pgvector/pgvector-go&#x22;)func findSimilarDocuments(ctx context.Context, conn *pgx.Conn, queryEmbedding []float32) {  // <=> is cosine distance. Use for normalized embeddings (OpenAI, Cohere).  // <-> is L2 (Euclidean) distance. Use for raw, un-normalized embeddings.  // Bump ef_search per-session for higher recall at the cost of latency.  _, err := conn.Exec(ctx, &#x22;SET LOCAL hnsw.ef_search = 100&#x22;)  if err != nil {    log.Fatalf(&#x22;set ef_search: %v&#x22;, err)  }  rows, err := conn.Query(ctx, &#x60;    SELECT id, content, embedding <=> $1 AS distance    FROM documents    ORDER BY embedding <=> $1    LIMIT 10  &#x60;, pgvector.NewVector(queryEmbedding))  if err != nil {    log.Fatalf(&#x22;query failed: %v&#x22;, err)  }  defer rows.Close()  for rows.Next() {    var id int    var content string    var distance float64    if err := rows.Scan(&#x26;id, &#x26;content, &#x26;distance); err != nil {      log.Fatal(err)    }    fmt.Printf(&#x22;id=%d distance=%.4f snippet=%q\n&#x22;, id, distance, content[:min(50, len(content))])  }}func min(a, b int) int {  if a < b {    return a  }  return b}"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="26-columnar-storage-olap-at-speed">2.6 Columnar Storage: OLAP at Speed</h3><a class="sl-anchor-link" href="#26-columnar-storage-olap-at-speed"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.6 Columnar Storage: OLAP at Speed”</span></a></div>
+<p>Row-oriented databases (Postgres, MySQL) store all columns of a row together. Columnar databases (ClickHouse, BigQuery, DuckDB, Parquet/Iceberg files) store each column separately as a contiguous run.</p>
+<p>For an analytics query like <code dir="auto">SELECT region, sum(revenue) WHERE date > '2025-01-01' GROUP BY region</code>, a row store must read every column from every row. A column store reads only <code dir="auto">revenue</code>, <code dir="auto">region</code>, and <code dir="auto">date</code> — often 50–200x less I/O.</p>
+<p><strong>Three optimizations that compound:</strong></p>
+<ol>
+<li><strong>Compression</strong> — same-type, often-correlated values compress 5–50x better than mixed-type rows. ClickHouse’s LZ4 + dictionary encoding routinely achieves 10:1 compression on event logs.</li>
+<li><strong>Vectorized execution</strong> — SIMD CPU instructions process 256-bit chunks at a time, aggregating thousands of values per CPU cycle.</li>
+<li><strong>Late materialization</strong> — apply filters first, reconstruct full rows only for the surviving fraction. A query selecting 0.1% of rows never touches 99.9% of the data.</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="27-graph-storage-adjacency-lists-vs-index-free-adjacency">2.7 Graph Storage: Adjacency Lists vs. Index-Free Adjacency</h3><a class="sl-anchor-link" href="#27-graph-storage-adjacency-lists-vs-index-free-adjacency"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.7 Graph Storage: Adjacency Lists vs. Index-Free Adjacency”</span></a></div>
+<p>In Postgres, a social graph is an <code dir="auto">edges(from_id, to_id)</code> table — an <strong>adjacency list</strong>. Finding 2nd-degree connections requires two self-joins over potentially millions of rows. At LinkedIn’s scale (1 billion profiles), even 2nd-degree traversal this way is prohibitive.</p>
+<p>Graph databases like Neo4j use <strong>index-free adjacency</strong>: each node stores physical pointers to its neighboring nodes. Traversal is O(1) per hop regardless of total graph size. The trade-off: global aggregates (e.g., “count all nodes with degree > 100”) require scanning every node, and horizontal scale beyond ~100 billion edges requires specialized clustering.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="3-use-cases-access-patterns--database-choice">3. Use Cases: Access Patterns → Database Choice</h2><a class="sl-anchor-link" href="#3-use-cases-access-patterns--database-choice"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “3. Use Cases: Access Patterns → Database Choice”</span></a></div>
+<pre class="mermaid">flowchart TD
+    Start([What is your primary\naccess pattern?]) --> Q1{Semantic\nsimilarity search?}
+    Q1 -->|Yes| VDB[Vector DB\npgvector / Milvus / Pinecone]
+    Q1 -->|No| Q2{Write rate\n> 100k writes/sec\nor append-only time-series?}
+    Q2 -->|Yes| Q3{Need SQL or\ncomplex JOINs?}
+    Q3 -->|No| LSM[LSM-tree DB\nCassandra / ScyllaDB]
+    Q3 -->|Yes| QDB[TimescaleDB / Citus\nor YugabyteDB]
+    Q2 -->|No| Q4{Full-text\nsearch and ranking?}
+    Q4 -->|Yes| ES[Elasticsearch /\nOpenSearch]
+    Q4 -->|No| Q5{Graph traversal\n> 2 hops?}
+    Q5 -->|Yes| GDB[Graph DB\nNeo4j / Neptune]
+    Q5 -->|No| Q6{Sub-millisecond\ncache or rate limiting?}
+    Q6 -->|Yes| Redis[Redis / Dragonfly]
+    Q6 -->|No| Q7{OLAP aggregate\nqueries over billions of rows?}
+    Q7 -->|Yes| COL[Columnar DB\nClickHouse / BigQuery]
+    Q7 -->|No| PG[PostgreSQL\nthe reliable default]
+
+    style PG fill:#336791,color:#fff
+    style LSM fill:#e45c2b,color:#fff
+    style Redis fill:#d82c20,color:#fff
+    style VDB fill:#00b386,color:#fff
+    style COL fill:#ffbc00,color:#000</pre>
+<p><em>Use this tree as a starting point. Validate every branch with your actual query patterns — access pattern assumptions are the most common source of wrong database choices.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Use Case</th><th>Access Pattern</th><th>Primary Choice</th><th>Why</th></tr></thead><tbody><tr><td>Rideshare dispatch (Uber/Lyft)</td><td>2D radius queries, frequent location updates</td><td>PostGIS / Redis Geo</td><td>R-tree O(log N) spatial lookups; Redis Geo for sub-ms driver location updates</td></tr><tr><td>Social feed at scale (Twitter/Meta)</td><td>Append-heavy, fan-out reads, time-ordered</td><td>Cassandra / ScyllaDB</td><td>LSM write throughput; wide rows model a user’s feed naturally</td></tr><tr><td>Full-text product search (Shopify)</td><td>Term matching + faceted filters + ranking</td><td>Elasticsearch</td><td>Inverted index + BM25 ranking out of the box</td></tr><tr><td>AI semantic search / RAG</td><td>k-NN vector similarity</td><td>pgvector / Pinecone</td><td>HNSW recall at low latency</td></tr><tr><td>Financial transactions (Stripe)</td><td>ACID, referential integrity, audit trail</td><td>PostgreSQL / CockroachDB</td><td>Serializable isolation; WAL = audit log</td></tr><tr><td>Rate limiting (Cloudflare)</td><td>Atomic increment + TTL per key</td><td>Redis</td><td><code dir="auto">INCR</code> + <code dir="auto">EXPIRE</code> is sub-microsecond and atomic</td></tr><tr><td>Ad analytics (Meta)</td><td>Aggregate scans over billions of events, no updates</td><td>ClickHouse / BigQuery</td><td>Columnar compression + vectorized execution</td></tr><tr><td>Fraud graph / knowledge graph (LinkedIn)</td><td>Multi-hop relationship traversal</td><td>Neo4j / Neptune</td><td>Index-free adjacency O(1) per hop</td></tr></tbody></table>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="4-gotchas-what-bites-you-in-production">4. Gotchas: What Bites You in Production</h2><a class="sl-anchor-link" href="#4-gotchas-what-bites-you-in-production"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4. Gotchas: What Bites You in Production”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="41-postgresql-vacuum-and-xid-wraparound">4.1 PostgreSQL: VACUUM and XID Wraparound</h3><a class="sl-anchor-link" href="#41-postgresql-vacuum-and-xid-wraparound"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.1 PostgreSQL: VACUUM and XID Wraparound”</span></a></div>
+<p>Postgres uses MVCC (Multi-Version Concurrency Control). Old row versions remain in the heap until <code dir="auto">VACUUM</code> removes them. The transaction ID (XID) is a 32-bit counter — after ~2.1 billion transactions, it wraps around. If <code dir="auto">autovacuum</code> can’t keep up with write volume, Postgres enters <strong>emergency wraparound protection mode</strong> and refuses all writes until manual intervention.</p>
+<p><strong>Detect it before it kills your database:</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="sql" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">SELECT</span><span style="--0:#24292E;--1:#E1E4E8"> datname,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">       </span></span><span style="--0:#24292E;--1:#E1E4E8">age(datfrozenxid)                      </span><span style="--0:#BF3441;--1:#F97583">AS</span><span style="--0:#24292E;--1:#E1E4E8"> xid_age,</span></div></div><div class="ec-line"><div class="code"><span class="indent">       </span><span style="--0:#005CC5;--1:#79B8FF">2147483647</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">-</span><span style="--0:#24292E;--1:#E1E4E8"> age(datfrozenxid)         </span><span style="--0:#BF3441;--1:#F97583">AS</span><span style="--0:#24292E;--1:#E1E4E8"> xids_remaining</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">FROM</span><span style="--0:#24292E;--1:#E1E4E8">   pg_database</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">ORDER  BY</span><span style="--0:#24292E;--1:#E1E4E8"> xid_age </span><span style="--0:#BF3441;--1:#F97583">DESC</span><span style="--0:#24292E;--1:#E1E4E8">;</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="SELECT datname,       age(datfrozenxid)                      AS xid_age,       2147483647 - age(datfrozenxid)         AS xids_remainingFROM   pg_databaseORDER  BY xid_age DESC;"><div></div></button></div></figure></div>
+<p>Set a PagerDuty alert at <code dir="auto">xids_remaining &#x3C; 200_000_000</code>. The Instagram engineering team hit this in 2012; their Postgres cluster refused writes at 3 AM during peak hours. They blogged about it. Read that post.</p>
+<p><strong>Secondary trap:</strong> Long-running transactions hold back the oldest XID horizon, meaning VACUUM cannot clean pages even if autovacuum runs continuously. Monitor <code dir="auto">pg_stat_user_tables.n_dead_tup</code> and kill transactions older than 30 minutes on write-heavy OLTP tables.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="42-cassandra-tombstone-accumulation">4.2 Cassandra: Tombstone Accumulation</h3><a class="sl-anchor-link" href="#42-cassandra-tombstone-accumulation"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.2 Cassandra: Tombstone Accumulation”</span></a></div>
+<p>When you delete a row in Cassandra, it writes a <strong>tombstone</strong> — a deletion marker — rather than removing data immediately. On reads, Cassandra must scan through tombstones to find live data. With the default 10-day <code dir="auto">gc_grace_seconds</code>, a <code dir="auto">SELECT</code> on a delete-heavy table can accumulate millions of tombstones per partition and trigger <code dir="auto">TombstoneOverwhelmingException</code>, causing read timeouts that cascade across the cluster.</p>
+<p><strong>Production rules:</strong></p>
+<ul>
+<li>If your delete rate is > 10% of writes, reconsider Cassandra for this access pattern.</li>
+<li>Use TTLs (<code dir="auto">USING TTL</code>) instead of explicit deletes wherever possible.</li>
+<li>Monitor <code dir="auto">tombstone_scanned_histogram</code> in <code dir="auto">nodetool tpstats</code>.</li>
+<li>Never design a schema with unbounded partition growth (e.g., all events for a user in one partition).</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="43-redis-hot-keys-and-cluster-resharding">4.3 Redis: Hot Keys and Cluster Resharding</h3><a class="sl-anchor-link" href="#43-redis-hot-keys-and-cluster-resharding"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.3 Redis: Hot Keys and Cluster Resharding”</span></a></div>
+<p>Redis Cluster assigns keys to one of 16,384 hash slots across shards. A “celebrity” key — a viral tweet’s like counter, a product launch’s inventory key — can funnel 200k req/sec to a single shard, melting it while the other shards idle at 2% CPU.</p>
+<p><strong>Three mitigations in order of invasiveness:</strong></p>
+<ol>
+<li><strong>Local application cache</strong> — cache the hot key in application memory with a 50–100ms TTL. For read-heavy counters, this eliminates 95% of Redis traffic with one line of code.</li>
+<li><strong>Key salting</strong> — split the logical key into N physical keys: <code dir="auto">tweet:123:likes:0</code> through <code dir="auto">tweet:123:likes:9</code>. Write to a random shard; read all 10 and sum. Transparent to callers behind a helper function.</li>
+<li><strong>Redis read replicas</strong> — available in Redis 7.0+ and Redis Enterprise. Route read traffic to replicas; writes go to the primary shard.</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Cluster resharding in Redis is not free and not fast. Moving a hash slot uses <code dir="auto">MIGRATE</code>, which is single-threaded per slot and blocks the source shard for each key transfer. At Slack, resharding a 50M-key cluster took 4+ hours and caused elevated P99 latency for the entire duration. Plan resharding for low-traffic maintenance windows, test your client’s behavior during slot migration exhaustively, and always throttle the migration speed with <code dir="auto">--cluster-throttle</code>. Budget a full week for the operation at scale.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="44-elasticsearch-mapping-explosions">4.4 Elasticsearch: Mapping Explosions</h3><a class="sl-anchor-link" href="#44-elasticsearch-mapping-explosions"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.4 Elasticsearch: Mapping Explosions”</span></a></div>
+<p>Elasticsearch’s <strong>dynamic mapping</strong> auto-detects field types on the first document insert. If you ingest JSON with unpredictable or user-supplied keys (e.g., metadata fields from a multi-tenant system), you can accumulate thousands of field mappings in a single index. The entire cluster state — including all mappings — is held in heap memory on every node. A mapping explosion can cause heap exhaustion, full GC pauses, and a cluster-wide outage.</p>
+<p><strong>Fix:</strong> Always use explicit mappings in production. Set <code dir="auto">"dynamic": "strict"</code> so unknown fields cause a rejection error rather than silent auto-mapping. For user-supplied metadata, store it as a serialized <code dir="auto">keyword</code> or use <code dir="auto">"enabled": false</code> on an object field.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="45-dynamodb-hot-partitions-and-the-adaptive-capacity-delay">4.5 DynamoDB: Hot Partitions and the Adaptive Capacity Delay</h3><a class="sl-anchor-link" href="#45-dynamodb-hot-partitions-and-the-adaptive-capacity-delay"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.5 DynamoDB: Hot Partitions and the Adaptive Capacity Delay”</span></a></div>
+<p>DynamoDB distributes data across partitions by hash key. A hot partition — one key receiving a disproportionate share of requests — gets throttled even if the table’s overall provisioned capacity is under-utilized. DynamoDB’s <strong>Adaptive Capacity</strong> automatically boosts throughput to hot partitions, but it takes 5–30 minutes to activate. That delay is the difference between a 5-minute degraded incident and a 30-minute outage on Black Friday.</p>
+<p><strong>Prevention:</strong> Design partition keys with high cardinality. For event sourcing, use composite keys like <code dir="auto">{user_id}#{year-month}</code> to spread writes across time windows. For hot global counters, use a Redis <code dir="auto">INCR</code> as the write path and sync to DynamoDB asynchronously.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="46-pgvector-recall-degradation-at-scale">4.6 pgvector: Recall Degradation at Scale</h3><a class="sl-anchor-link" href="#46-pgvector-recall-degradation-at-scale"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4.6 pgvector: Recall Degradation at Scale”</span></a></div>
+<p>pgvector defaults to <code dir="auto">hnsw.ef_search = 40</code>. At this setting, recall (the fraction of true nearest neighbors in the returned top-10) can drop to 82–88% for 1536-dimension OpenAI embeddings on datasets larger than 1M vectors. If your RAG application starts returning irrelevant context chunks, low recall is likely the cause before you suspect the LLM.</p>
+<p><strong>Tuning levers:</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="sql" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Tune per-session — no index rebuild needed</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">SET</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">LOCAL</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">hnsw</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#005CC5;--1:#79B8FF">ef_search</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">100</span><span style="--0:#24292E;--1:#E1E4E8">;</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Verify recall by comparing against an exact brute-force scan:</span></div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Use ivfflat with lists=1 as exact-scan ground truth</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">CREATE</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">INDEX</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">ON</span><span style="--0:#24292E;--1:#E1E4E8"> documents </span><span style="--0:#BF3441;--1:#F97583">USING</span><span style="--0:#24292E;--1:#E1E4E8"> ivfflat (embedding vector_cosine_ops) </span><span style="--0:#BF3441;--1:#F97583">WITH</span><span style="--0:#24292E;--1:#E1E4E8"> (lists </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">1</span><span style="--0:#24292E;--1:#E1E4E8">);</span></div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Then compare top-10 results from both indexes on a sample of queries.</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="-- Tune per-session — no index rebuild neededSET LOCAL hnsw.ef_search = 100;-- Verify recall by comparing against an exact brute-force scan:-- Use ivfflat with lists=1 as exact-scan ground truthCREATE INDEX ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 1);-- Then compare top-10 results from both indexes on a sample of queries."><div></div></button></div></figure></div>
+<p>A jump from <code dir="auto">ef_search=40</code> to <code dir="auto">ef_search=100</code> typically recovers 5–8% recall at the cost of 2–3x query latency. At &#x3C; 5M vectors that latency is still under 20ms P99. Beyond 10M vectors, switch to Milvus or a dedicated vector service.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="5-where-to-use-and-where-not-to-use">5. Where to Use (and Where NOT to Use)</h2><a class="sl-anchor-link" href="#5-where-to-use-and-where-not-to-use"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “5. Where to Use (and Where NOT to Use)”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Database</th><th>Use When</th><th>Do NOT Use When</th></tr></thead><tbody><tr><td><strong>PostgreSQL</strong></td><td>ACID required, complex JOINs, team has SQL expertise, write rate &#x3C; 50k/sec</td><td>You need > 500k writes/sec, or horizontal write scale across multiple regions</td></tr><tr><td><strong>Cassandra / ScyllaDB</strong></td><td>> 100k writes/sec, time-series, multi-DC active-active, no complex aggregations</td><td>You need JOINs, ad-hoc queries, or strong consistency by default</td></tr><tr><td><strong>Redis</strong></td><td>Sub-millisecond reads, rate limiting, pub/sub, distributed locks, caching</td><td>You need durable primary storage of critical data you cannot afford to lose</td></tr><tr><td><strong>Elasticsearch</strong></td><td>Full-text search, log analytics, faceted navigation</td><td>You need ACID semantics, strong consistency, or it’s your only datastore</td></tr><tr><td><strong>DynamoDB</strong></td><td>AWS-native, fully serverless, massive unbounded scale, simple key-range access</td><td>Complex multi-attribute access patterns, frequent scans, or tight cost budgets</td></tr><tr><td><strong>ClickHouse / BigQuery</strong></td><td>Petabyte-scale analytics, aggregate-heavy dashboards, time-series event data</td><td>OLTP workloads, frequent updates/deletes, or datasets under 10M rows (Postgres is fine)</td></tr><tr><td><strong>Neo4j / Neptune</strong></td><td>Relationship-first data model, traversal depth > 3 hops</td><td>Simple foreign-key relationships better served by Postgres + indexed joins</td></tr><tr><td><strong>pgvector</strong></td><td>&#x3C; 5M vectors, already on Postgres, recall > 90% acceptable, ops simplicity valued</td><td>> 10M vectors at &#x3C; 10ms P99 latency — use Milvus or Pinecone at that scale</td></tr></tbody></table>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The most expensive database decision isn’t the one you make at the start — it’s the one you’re too afraid to reverse later. The right time to move a write-heavy logging service from Postgres to Cassandra is at 20k writes/sec (when you have runway), not at 200k writes/sec when you’re already on fire. Build migration readiness into your architecture reviews, not your incident retrospectives.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="6-versus-head-to-head-comparisons">6. Versus: Head-to-Head Comparisons</h2><a class="sl-anchor-link" href="#6-versus-head-to-head-comparisons"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6. Versus: Head-to-Head Comparisons”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="61-postgresql-vs-dynamodb">6.1 PostgreSQL vs. DynamoDB</h3><a class="sl-anchor-link" href="#61-postgresql-vs-dynamodb"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6.1 PostgreSQL vs. DynamoDB”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>PostgreSQL</th><th>DynamoDB</th></tr></thead><tbody><tr><td>Consistency</td><td>Serializable ACID</td><td>Eventually consistent (default); strongly consistent reads available at +50% cost</td></tr><tr><td>Query model</td><td>Full SQL — JOINs, window functions, CTEs, aggregates</td><td>Key-value + range scan on sort key; no JOINs</td></tr><tr><td>Write throughput</td><td>~50k writes/sec single node; ~500k with Citus sharding</td><td>Virtually unlimited with well-distributed partition keys</td></tr><tr><td>Horizontal scale</td><td>Citus sharding, application-level sharding</td><td>Native and fully managed</td></tr><tr><td>Operational burden</td><td>High — VACUUM, partitioning, connection pooling, replica lag</td><td>Near-zero — serverless mode requires no capacity planning</td></tr><tr><td>Cost model</td><td>Predictable (instance-based; ~$0.10/hr for db.m5.large)</td><td>Unpredictable at scale: 1M writes/sec ≈ $50k+/month on-demand</td></tr><tr><td>P99 latency</td><td>1–10ms (single region)</td><td>1–5ms (single region)</td></tr></tbody></table>
+<p><strong>Choose PostgreSQL when:</strong> You have relational data with complex access patterns, need ACID for financial or compliance workloads, or your team has strong SQL expertise and your write rate is under control.</p>
+<p><strong>Choose DynamoDB when:</strong> You’re building on AWS, need infinite horizontal write scale with zero operational overhead, and your access patterns are well-defined key-value or key-range lookups from the start. The cost model punishes late schema changes on DynamoDB; design your access patterns before you write a line of code.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="62-cassandra-vs-scylladb-the-discord-migration-story">6.2 Cassandra vs. ScyllaDB (The Discord Migration Story)</h3><a class="sl-anchor-link" href="#62-cassandra-vs-scylladb-the-discord-migration-story"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6.2 Cassandra vs. ScyllaDB (The Discord Migration Story)”</span></a></div>
+<p>In 2022–2023, Discord migrated their messages database from Cassandra to ScyllaDB. The proximate cause: their Cassandra cluster had grown to 177 nodes, was experiencing JVM garbage collection stop-the-world pauses (up to 8 seconds at P99.9), and required 20% more nodes every quarter to keep up with message volume growth. ScyllaDB is a C++ reimplementation of the Cassandra storage engine and wire protocol with a <strong>shard-per-core</strong> architecture — no JVM, no global GC, no shared locks between cores.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Cassandra</th><th>ScyllaDB</th></tr></thead><tbody><tr><td>Runtime</td><td>Java (JVM)</td><td>C++</td></tr><tr><td>GC pauses</td><td>Yes — JVM GC, P99.9 can reach 8s+</td><td>None — manual memory management, no GC</td></tr><tr><td>CPU efficiency</td><td>~40% effective (JVM overhead, GC cycles)</td><td>~80% effective (shard-per-core, no contention)</td></tr><tr><td>Node count at Discord</td><td>177 nodes</td><td>72 nodes (59% reduction)</td></tr><tr><td>Wire protocol</td><td>CQL</td><td>CQL-compatible — drop-in replacement</td></tr><tr><td>Operational tooling</td><td>Very mature: nodetool, Cassandra Reaper</td><td>Growing: Scylla Manager, scyllatop</td></tr><tr><td>Community size</td><td>Large, 10+ years mature</td><td>Smaller, rapidly growing</td></tr></tbody></table>
+<p><strong>Choose Cassandra when:</strong> Your team has years of operational muscle memory, you’re not experiencing JVM GC pain, and the cost of migration (engineering time, risk) outweighs the efficiency gains.</p>
+<p><strong>Choose ScyllaDB when:</strong> You’re starting fresh, experiencing JVM GC latency spikes under load, or running at Discord/Roblox scale where a 60% node reduction saves millions annually in infrastructure cost.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="63-pgvector-vs-pinecone-vs-milvus">6.3 pgvector vs. Pinecone vs. Milvus</h3><a class="sl-anchor-link" href="#63-pgvector-vs-pinecone-vs-milvus"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6.3 pgvector vs. Pinecone vs. Milvus”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>pgvector</th><th>Pinecone</th><th>Milvus</th></tr></thead><tbody><tr><td>Deployment</td><td>Self-hosted (your Postgres instance)</td><td>Fully managed SaaS</td><td>Self-hosted or Zilliz Cloud</td></tr><tr><td>Practical scale limit</td><td>~5M vectors at &#x3C; 20ms P99</td><td>100M+ (managed)</td><td>1B+</td></tr><tr><td>Recall at default settings</td><td>~82–92% (ef_search=40)</td><td>~95%+ (vendor-managed tuning)</td><td>~95%+ (tunable)</td></tr><tr><td>P99 latency (1M vectors)</td><td>5–20ms</td><td>1–5ms</td><td>2–10ms</td></tr><tr><td>Ops overhead</td><td>None — already in Postgres</td><td>None — SaaS</td><td>High — distributed system on K8s</td></tr><tr><td>Cost</td><td>Marginal (existing Postgres cost)</td><td>~$0.096/1M reads — expensive at scale</td><td>Infrastructure + engineering time</td></tr><tr><td>Hybrid search (sparse + dense)</td><td>Via ParadeDB pg_search</td><td>Yes (metadata filtering)</td><td>Yes (sparse + dense)</td></tr></tbody></table>
+<p><strong>Choose pgvector when:</strong> Your dataset is under 5M vectors, you already operate Postgres, and ops simplicity is the priority. This is the right call for 90% of RAG applications.</p>
+<p><strong>Choose Pinecone when:</strong> You want zero operational burden and the SaaS cost fits your budget.</p>
+<p><strong>Choose Milvus when:</strong> You’re at 50M+ vectors, need maximum query throughput, and have an infrastructure team capable of operating a distributed system.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="64-redis-vs-memcached">6.4 Redis vs. Memcached</h3><a class="sl-anchor-link" href="#64-redis-vs-memcached"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6.4 Redis vs. Memcached”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Redis</th><th>Memcached</th></tr></thead><tbody><tr><td>Data structures</td><td>Strings, Hashes, Lists, Sets, Sorted Sets, Streams, HyperLogLog, Geo</td><td>Strings only</td></tr><tr><td>Persistence</td><td>RDB snapshots + AOF (optional, configurable)</td><td>None — purely in-memory, no durability</td></tr><tr><td>Clustering</td><td>Redis Cluster (16,384 hash slots), Sentinel for HA</td><td>Client-side consistent hashing only</td></tr><tr><td>Pub/Sub</td><td>Yes — Streams API, legacy Pub/Sub</td><td>No</td></tr><tr><td>Threading model</td><td>Single-threaded command loop; I/O threads from v6.0</td><td>Multi-threaded throughout</td></tr><tr><td>Memory overhead</td><td>~30% over raw data</td><td>~20% over raw data</td></tr></tbody></table>
+<p><strong>Choose Redis when:</strong> You need any data structure beyond plain strings, pub/sub messaging, optional persistence, or cluster-native partitioning with failover. This is nearly always the right choice for new systems.</p>
+<p><strong>Choose Memcached when:</strong> You’re caching large uniform blobs (e.g., serialized HTML fragments), need maximum raw multi-threaded throughput, and your ops team has existing Memcached expertise.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="65-aurora-vs-rds-postgresql-vs-vitess">6.5 Aurora vs. RDS PostgreSQL vs. Vitess</h3><a class="sl-anchor-link" href="#65-aurora-vs-rds-postgresql-vs-vitess"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6.5 Aurora vs. RDS PostgreSQL vs. Vitess”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Aurora (PostgreSQL)</th><th>RDS (PostgreSQL)</th><th>Vitess</th></tr></thead><tbody><tr><td>Architecture</td><td>Storage-compute separation; distributed log</td><td>Standard Postgres on managed EC2</td><td>Sharded MySQL with a proxy layer</td></tr><tr><td>Failover time</td><td>&#x3C; 30 seconds</td><td>60–120 seconds (Multi-AZ)</td><td>Manual / orchestrated (minutes)</td></tr><tr><td>Read replicas</td><td>Up to 15; near-zero replication lag (shared storage)</td><td>Up to 5; replication lag varies with write load</td><td>Unlimited (each shard has its own replicas)</td></tr><tr><td>Max storage</td><td>128 TiB (auto-scales in 10 GB increments)</td><td>64 TiB</td><td>Unlimited (add shards)</td></tr><tr><td>Write scale</td><td>Vertical only (up to db.r6g.16xlarge)</td><td>Vertical only</td><td>Horizontal (as many shards as needed)</td></tr><tr><td>Cost vs RDS</td><td>~2–3x RDS for equivalent instance</td><td>Baseline</td><td>High operational cost</td></tr><tr><td>SQL compatibility</td><td>Full PostgreSQL</td><td>Full PostgreSQL</td><td>MySQL dialect</td></tr></tbody></table>
+<p>Aurora’s key architectural insight: it replicates the <strong>redo log</strong> — not full data pages — across 6 copies in 3 Availability Zones. A failover doesn’t need to replay a WAL from a replica; the new primary instance simply mounts the existing shared storage volume. This is why Aurora’s failover is 4x faster than standard Multi-AZ RDS.</p>
+<pre class="mermaid">flowchart TD
+    subgraph "Aurora Compute Layer"
+        W[Writer Instance]
+        R1[Reader 1]
+        R2[Reader 2]
+        R3[Reader 3]
+    end
+
+    subgraph "Aurora Distributed Storage — 6 copies across 3 AZs"
+        AZ1["AZ-1\n2 storage copies"]
+        AZ2["AZ-2\n2 storage copies"]
+        AZ3["AZ-3\n2 storage copies"]
+    end
+
+    W -->|"redo log records only\n(not full pages)"| AZ1
+    W --> AZ2
+    W --> AZ3
+
+    R1 -->|reads from shared storage| AZ1
+    R2 --> AZ2
+    R3 --> AZ3
+
+    W -.->|"quorum write:\n4 of 6 must ack"| AZ3
+
+    style W fill:#ff9900,color:#000
+    style AZ1 fill:#232f3e,color:#fff
+    style AZ2 fill:#232f3e,color:#fff
+    style AZ3 fill:#232f3e,color:#fff</pre>
+<p><em>Aurora sends only redo log records to storage — not full pages. Storage nodes reconstruct pages on demand. Readers share the same storage as the writer, so there is no data replication lag — only minimal log propagation lag (~10ms).</em></p>
+<p><strong>Choose Aurora when:</strong> You’re AWS-native, need fast failover and easy read scaling, and the 2–3x cost premium over RDS is offset by reduced operational toil.</p>
+<p><strong>Choose RDS when:</strong> Cost is the primary constraint and standard Multi-AZ failover (&#x3C; 2 minutes) is acceptable.</p>
+<p><strong>Choose Vitess when:</strong> You’re already on MySQL and need horizontal write scale beyond what a single Aurora instance can provide — as YouTube and GitHub did at petabyte scale.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="7-zero-downtime-migration-playbook">7. Zero-Downtime Migration Playbook</h2><a class="sl-anchor-link" href="#7-zero-downtime-migration-playbook"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “7. Zero-Downtime Migration Playbook”</span></a></div>
+<p>This is Interview Question #2 — answered in full. The principle: <strong>never do a hard cutover. Always have a kill switch to roll back to the old database in under 1 second.</strong></p>
+<pre class="mermaid">flowchart LR
+    P1["Phase 1\nDual Writes"] --> P2["Phase 2\nBackfill"]
+    P2 --> P3["Phase 3\nShadow Reads"]
+    P3 --> P4["Phase 4\nGradual Cutover"]
+    P4 --> P5["Phase 5\nDeprecate Old DB"]
+
+    subgraph "Phase 1"
+        A1["Write to old DB AND new DB\non every mutation.\nNew DB is non-authoritative."]
+    end
+    subgraph "Phase 2"
+        A2["Batch-copy historical data\nto new DB via cursor pagination.\nThrottle to 10-20% of DB I/O."]
+    end
+    subgraph "Phase 3"
+        A3["Route N% of reads to new DB.\nRun comparison job.\nLog discrepancies. Alert on > 0.1%."]
+    end
+    subgraph "Phase 4"
+        A4["0% → 5% → 25% → 50% → 100%\nReads routed to new DB.\nKill switch = feature flag."]
+    end</pre>
+<p><em>Five-phase migration: dual writes keep both databases in sync during backfill. Shadow reads validate correctness before any traffic moves. Feature-flag kill switch allows instant rollback at every phase.</em></p>
+<p><strong>Kill switch implementation:</strong> Use a feature flag (LaunchDarkly, AWS AppConfig, or a Redis key). When the comparison job in Phase 3 detects > 0.1% discrepancy between old and new DB responses, flip the flag — all reads immediately revert to the old database in under 1 second.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The comparison job in Phase 3 is where migrations succeed or fail silently. It needs to handle: timestamp precision differences (microseconds vs milliseconds), NULL vs empty string semantics, floating-point normalization, and array ordering. Invest a full week building and validating it. Teams that skip this discover data divergence six months after the old database is decommissioned — when it’s too late to roll back.</p>
+</blockquote>
+<p><strong>Backfill rate limiting:</strong> Cursor-paginate through the source table in batches of 1,000–10,000 rows. Add a <code dir="auto">time.Sleep</code> between batches to keep the backfill I/O below 20% of the source database’s capacity. A 50TB migration at 100MB/s sustained I/O takes ~6 days — plan the timeline accordingly.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="8-monitoring--observability-what-to-look-at-first-at-3-am">8. Monitoring &#x26; Observability: What to Look at First at 3 AM</h2><a class="sl-anchor-link" href="#8-monitoring--observability-what-to-look-at-first-at-3-am"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “8. Monitoring &#x26; Observability: What to Look at First at 3 AM”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="postgresql">PostgreSQL</h3><a class="sl-anchor-link" href="#postgresql"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “PostgreSQL”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>Alert Threshold</th><th>Why It Matters</th></tr></thead><tbody><tr><td><code dir="auto">pg_stat_replication.write_lag</code></td><td>> 10 seconds</td><td>Replica falling behind; read traffic may be serving stale data</td></tr><tr><td><code dir="auto">age(datfrozenxid)</code> per database</td><td>> 1.5 billion</td><td>XID wraparound danger zone — emergency VACUUM needed</td></tr><tr><td><code dir="auto">pg_stat_user_tables.n_dead_tup</code></td><td>> 20% of <code dir="auto">n_live_tup</code></td><td>Autovacuum not keeping up; table bloat and slow scans imminent</td></tr><tr><td>Cache hit ratio</td><td>&#x3C; 99%</td><td><code dir="auto">shared_buffers</code> is undersized for your working set</td></tr><tr><td><code dir="auto">pg_stat_activity</code> long-running queries</td><td>> 30 minutes</td><td>Holding XID horizon back; blocking autovacuum</td></tr></tbody></table>
+<div class="sl-heading-wrapper level-h3"><h3 id="cassandra--scylladb">Cassandra / ScyllaDB</h3><a class="sl-anchor-link" href="#cassandra--scylladb"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Cassandra / ScyllaDB”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>Alert Threshold</th></tr></thead><tbody><tr><td><code dir="auto">tombstone_scanned</code> P99</td><td>> 1,000 per query</td></tr><tr><td><code dir="auto">compaction_pending_tasks</code></td><td>Sustained > 32</td></tr><tr><td><code dir="auto">jvm_gc_time</code> (Cassandra only)</td><td>> 5 seconds</td></tr><tr><td><code dir="auto">read_latency_p99</code></td><td>> 50ms</td></tr><tr><td><code dir="auto">dropped_messages.READ_TIMEOUT</code></td><td>Any non-zero value</td></tr><tr><td><code dir="auto">disk_usage</code> per node</td><td>> 70% (compaction needs headroom)</td></tr></tbody></table>
+<div class="sl-heading-wrapper level-h3"><h3 id="redis">Redis</h3><a class="sl-anchor-link" href="#redis"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Redis”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>Alert Threshold</th></tr></thead><tbody><tr><td><code dir="auto">evicted_keys</code> rate</td><td>> 0 (data eviction means your cache is too small)</td></tr><tr><td><code dir="auto">keyspace_hits / (hits + misses)</code></td><td>&#x3C; 85%</td></tr><tr><td><code dir="auto">blocked_clients</code></td><td>> 5</td></tr><tr><td><code dir="auto">rdb_last_bgsave_status</code></td><td><code dir="auto">err</code></td></tr><tr><td><code dir="auto">cluster_state</code></td><td>Not <code dir="auto">ok</code></td></tr><tr><td><code dir="auto">used_memory</code> / <code dir="auto">maxmemory</code></td><td>> 85%</td></tr></tbody></table>
+<div class="sl-heading-wrapper level-h3"><h3 id="elasticsearch">Elasticsearch</h3><a class="sl-anchor-link" href="#elasticsearch"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Elasticsearch”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>Alert Threshold</th></tr></thead><tbody><tr><td>JVM heap used</td><td>> 75% (GC pressure, risk of OOM)</td></tr><tr><td><code dir="auto">search.query_time_in_millis</code> P99</td><td>> 200ms</td></tr><tr><td><code dir="auto">indexing.throttle_time_in_millis</code></td><td>Rising trend</td></tr><tr><td><code dir="auto">unassigned_shards</code></td><td>> 0</td></tr><tr><td><code dir="auto">fielddata_evictions</code></td><td>> 0</td></tr></tbody></table>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="9-scale-where-each-database-breaks">9. Scale: Where Each Database Breaks</h2><a class="sl-anchor-link" href="#9-scale-where-each-database-breaks"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “9. Scale: Where Each Database Breaks”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Database</th><th>Baseline</th><th>10x</th><th>100x</th><th>1000x</th><th>First Bottleneck</th></tr></thead><tbody><tr><td>Postgres (single node)</td><td>10k writes/sec</td><td>Add PgBouncer + read replicas</td><td>Partitioning required</td><td>Requires Citus or migration to Cassandra</td><td>Lock contention, XID bloat, VACUUM lag</td></tr><tr><td>Cassandra</td><td>50k writes/sec</td><td>Add nodes linearly</td><td>Linear scale</td><td>Linear scale</td><td>Tombstone accumulation; compaction debt on delete-heavy tables</td></tr><tr><td>Redis (single)</td><td>100k ops/sec</td><td>Redis Cluster (hash slots)</td><td>Cluster + read replicas</td><td>Hot key bottleneck on a single slot</td><td>Single shard CPU for hot key</td></tr><tr><td>Elasticsearch</td><td>10k docs/sec</td><td>Add shards and replicas</td><td>Cross-cluster replication</td><td>Expensive, complex to operate</td><td>JVM heap exhaustion, mapping explosion</td></tr><tr><td>DynamoDB</td><td>Unlimited*</td><td>Unlimited*</td><td>Unlimited*</td><td>Unlimited*</td><td>Hot partitions at design time; cost at $50k+/month at 1M writes/sec</td></tr><tr><td>ClickHouse</td><td>1M rows/sec ingest</td><td>Distributed engine (sharded)</td><td>Native sharding</td><td>ClickHouse Cloud</td><td>Slow point lookups; complex multi-table joins</td></tr></tbody></table>
+<p>*DynamoDB’s “infinite” scale is real but has a linear cost curve. Design your access patterns to minimize <code dir="auto">Scan</code> operations — each full-table scan at 1M items costs ~$0.25 and can be catastrophic at scale if triggered in a hot path.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="10-interview-questions">10. Interview Questions</h2><a class="sl-anchor-link" href="#10-interview-questions"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “10. Interview Questions”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="q1-consolidation-vs-specialization">Q1: Consolidation vs. Specialization</h3><a class="sl-anchor-link" href="#q1-consolidation-vs-specialization"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q1: Consolidation vs. Specialization”</span></a></div>
+<p><strong>“When do you move a service out of Postgres into a dedicated NoSQL store?”</strong></p>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>Signal #1: Write rate approaching 70% of Postgres capacity headroom — migrate <em>before</em> you’re in pain, not during it.</li>
+<li>Signal #2: Query patterns diverging from relational (pure key-value access, no JOINs, time-series appends).</li>
+<li>Signal #3: Postgres operational toil (VACUUM tuning, replica lag management) consuming > 1 engineer-hour/week.</li>
+<li>Framework: this is a “two-way door” decision only if you build the migration infrastructure. Without it, NoSQL migrations are effectively one-way. Always write an ADR documenting what you gain, what you lose, and the migration plan.</li>
+</ul>
+<p><strong>Common candidate mistakes:</strong></p>
+<ul>
+<li>Saying “use MongoDB for schema flexibility” without mentioning that schema-on-read makes debugging production issues significantly harder.</li>
+<li>Not considering whether Postgres partitioning + PgBouncer would extend the runway by 18–24 months (it often does).</li>
+<li>Describing the database choice without a migration plan. The choice is 10% of the work; the migration is 90%.</li>
+</ul>
+<p><strong>What interviewers look for at L6/L7:</strong> An opinionated framework with named thresholds, not hedging. A strong answer says: “At 70% write capacity headroom with a diverging access pattern and > 1 hour/week of operational toil, I’d start a dual-write pilot. Here’s how I’d structure it.” That’s staff-level. “It depends” is not.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q2-zero-downtime-migration">Q2: Zero-Downtime Migration</h3><a class="sl-anchor-link" href="#q2-zero-downtime-migration"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q2: Zero-Downtime Migration”</span></a></div>
+<p><strong>“How do you migrate 50TB of data with a kill switch and zero customer impact?”</strong></p>
+<p>See Section 7 for the full playbook. In an interview, structure your answer as: dual writes → throttled backfill → shadow reads with comparison job → gradual percentage cutover → deprecate.</p>
+<p><strong>Key points to cover:</strong> Feature-flag kill switch with &#x3C; 1 second rollback SLA. Comparison job as the safety net. Backfill rate limiting to stay under 20% source DB I/O. Dark traffic phase before any cutover.</p>
+<p><strong>Common mistake:</strong> Describing a <code dir="auto">pg_dump</code> / restore procedure. This has hours of downtime and no rollback path. A strong candidate immediately asks: “What is the tolerated downtime?” and then designs a migration that has zero observable downtime with a rollback at every step.</p>
+<p><strong>What interviewers look for:</strong> Can you design a process that is never in an inconsistent observable state, with a reversible escape hatch at every stage? That is the distinguishing mark between a senior and a staff engineer in this domain.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q3-hot-partitions">Q3: Hot Partitions</h3><a class="sl-anchor-link" href="#q3-hot-partitions"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q3: Hot Partitions”</span></a></div>
+<p><strong>“How do you handle a ‘celebrity’ key in a Redis cluster that causes uneven load?”</strong></p>
+<p><strong>Key points to cover:</strong> Detection via per-key metrics (<code dir="auto">redis-cli --hotkeys</code> or keyspace sampling). Three mitigations: local app-level cache (quickest), key salting across N shards (scalable), read replicas (infrastructure investment). Always address detection before mitigation.</p>
+<p><strong>Common mistake:</strong> Only describing key salting without mentioning the need to detect the hot key in the first place. Staff engineers instrument first, fix second. “How do you know it’s a hot key problem?” is the follow-up question.</p>
+<p><strong>What interviewers look for:</strong> Do you have a mental model of where the bottleneck actually is (single shard CPU), and do you select the mitigation most appropriate for the read/write pattern of the specific key?</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q4-storage-compute-separation">Q4: Storage-Compute Separation</h3><a class="sl-anchor-link" href="#q4-storage-compute-separation"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q4: Storage-Compute Separation”</span></a></div>
+<p><strong>“How does Aurora’s architecture differ from standard RDS in terms of failover and replication?”</strong></p>
+<p><strong>Key points to cover:</strong> Aurora replicates the redo log, not data pages. 6-way replication across 3 AZs. Quorum writes: 4/6 copies must acknowledge. Failover &#x3C; 30 seconds because no WAL replay required — new primary mounts existing storage. Readers share physical storage with the writer, eliminating traditional replication lag for page reads.</p>
+<p>See the Aurora diagram in Section 6.5 — be able to draw this from memory.</p>
+<p><strong>Common mistake:</strong> “Aurora is managed Postgres with more read replicas.” It is a fundamentally different storage architecture with different failure characteristics and a different performance envelope.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q5-real-time-analytics-oltp--olap">Q5: Real-Time Analytics (OLTP → OLAP)</h3><a class="sl-anchor-link" href="#q5-real-time-analytics-oltp--olap"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q5: Real-Time Analytics (OLTP → OLAP)”</span></a></div>
+<p><strong>“How do you bridge OLTP and OLAP workloads without affecting production traffic?”</strong></p>
+<p><strong>Approaches in order of increasing complexity:</strong></p>
+<ol>
+<li><strong>Read replica + DuckDB/pg_analytics</strong> — for &#x3C; 1TB, dashboard queries with 1-hour acceptable staleness. Zero new infrastructure.</li>
+<li><strong>CDC (Debezium) → Kafka → ClickHouse</strong> — real-time streaming ETL, sub-minute latency, fully decoupled OLAP load.</li>
+<li><strong>Zero-ETL (Aurora → Redshift)</strong> — AWS-native, near real-time, no Kafka required. Limited transformation flexibility.</li>
+<li><strong>HTAP (TiDB, SingleStore)</strong> — same database serves both workloads. Elegant but niche.</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The CDC-to-ClickHouse pattern is the one I recommend for most teams at 10M+ rows/day. It completely decouples analytical query load from production Postgres. A 30-second OLAP query that caused lock contention on Postgres runs in 50ms in ClickHouse. The cost: Kafka operational overhead + schema evolution management. Invest in a solid schema registry from day one — schema drift between Postgres and ClickHouse is the #1 source of silent data quality issues in this architecture.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q6-cap-theorem-applied">Q6: CAP Theorem Applied</h3><a class="sl-anchor-link" href="#q6-cap-theorem-applied"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q6: CAP Theorem Applied”</span></a></div>
+<p><strong>“Classify PostgreSQL, Cassandra, DynamoDB, and Redis under CAP. When do you choose CP over AP?”</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Database</th><th>Classification</th><th>Practical Behavior</th></tr></thead><tbody><tr><td>PostgreSQL</td><td>CP</td><td>Refuses writes during partition rather than risk divergence</td></tr><tr><td>Cassandra</td><td>AP (configurable)</td><td><code dir="auto">QUORUM</code> consistency moves toward CP; <code dir="auto">ONE</code> is AP</td></tr><tr><td>DynamoDB</td><td>AP (default)</td><td>Strongly consistent reads flip it toward CP at +50% cost</td></tr><tr><td>Redis Cluster</td><td>AP</td><td>Split-brain possible during partition; Sentinel setup is CP-leaning</td></tr><tr><td>CockroachDB</td><td>CP</td><td>Raft consensus on every write; ~5ms cross-region coordination latency</td></tr></tbody></table>
+<p><strong>Choose CP when:</strong> Money, inventory, seat reservations — any domain where a stale read causes a real-world inconsistency that is expensive to correct (double-booking, overdraft).</p>
+<p><strong>Choose AP when:</strong> Recommendations, activity feeds, view counts — where serving a slightly stale value is orders of magnitude better than showing an error.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> CAP is frequently misapplied because network partitions are rare. Daniel Abadi’s <strong>PACELC</strong> model is more useful: Partition → Availability vs Consistency; <strong>Else (no partition)</strong> → Latency vs Consistency. DynamoDB optimizes for low latency (E→L) by default. CockroachDB optimizes for consistency (E→C) at the cost of 5ms+ cross-region latency per write. When you’re choosing a database for a normally-operating system, PACELC tells you more than CAP does.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q7-multi-region-active-active">Q7: Multi-Region Active-Active</h3><a class="sl-anchor-link" href="#q7-multi-region-active-active"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q7: Multi-Region Active-Active”</span></a></div>
+<p><strong>“Design a multi-region active-active database architecture for a payments system.”</strong></p>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li><strong>Why it’s hard:</strong> Active-active with strong consistency requires cross-region coordination on every write. US-East to EU-West round trip = 100ms+. A write to a shared account balance would block on that round trip on every transaction.</li>
+<li><strong>Conflict-free design (preferred):</strong> Shard by user geography. US users’ data lives in US-East; EU users’ data lives in EU-West. Cross-region writes only happen for users who travel — a small fraction.</li>
+<li><strong>Conflict resolution for shared data:</strong> CRDTs for commutative operations (counters, sets). Last-write-wins with vector clocks for profile updates. Saga pattern or 2PC for cross-region transactions.</li>
+<li><strong>Technologies:</strong> CockroachDB Global Tables, Google Spanner (TrueTime), DynamoDB Global Tables (AP), Cassandra with <code dir="auto">NetworkTopologyStrategy</code>.</li>
+</ul>
+<p><strong>Common mistake:</strong> Proposing active-active without addressing conflict resolution. Every system that accepts concurrent writes to the same logical record across regions will eventually receive conflicting updates. The question is not whether it happens — it will. The question is how your system detects and converges.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q8-consistency-models">Q8: Consistency Models</h3><a class="sl-anchor-link" href="#q8-consistency-models"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q8: Consistency Models”</span></a></div>
+<p><strong>“Explain linearizability, sequential consistency, and eventual consistency with a concrete example of where each matters.”</strong></p>
+<ul>
+<li><strong>Linearizability (strongest):</strong> Every operation appears to execute instantaneously at a single moment in time. If write W completes before read R starts, R <em>must</em> see W’s value. Required for: bank balances, inventory counters, distributed locks.</li>
+<li><strong>Sequential consistency:</strong> Operations within each process appear in order, but there is no real-time guarantee between concurrent processes from different clients.</li>
+<li><strong>Eventual consistency:</strong> All replicas converge to the same value eventually, assuming no new writes. DNS propagation is eventually consistent.</li>
+</ul>
+<p><strong>Concrete bug from eventual consistency:</strong> User updates their email address. Write goes to replica A. User immediately hits refresh — read goes to replica B. User sees their old email, panics, submits a duplicate update. This is the missing “read-your-own-writes” guarantee, absent in eventually consistent systems by default.</p>
+<p><strong>What interviewers look for:</strong> A specific scenario where the weaker guarantee causes an observable bug for an end user. Generic definitions fail. A concrete production bug succeeds.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="11-references">11. References</h2><a class="sl-anchor-link" href="#11-references"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “11. References”</span></a></div>
+<ul>
+<li><strong><a href="https://dataintensive.net/">Designing Data-Intensive Applications</a></strong> — Martin Kleppmann. Read Chapters 3 (storage engines), 5 (replication), 6 (partitioning), and 9 (consistency) before any staff interview.</li>
+<li><strong><a href="https://15445.courses.cs.cmu.edu/">CMU 15-445/645 Database Systems</a></strong> — Andy Pavlo. Free lectures covering storage engines, buffer management, concurrency control, and recovery.</li>
+<li><strong><a href="https://discord.com/blog/how-discord-stores-trillions-of-messages">Discord: How Discord Stores Trillions of Messages</a></strong> — The Cassandra → ScyllaDB migration case study with production numbers.</li>
+<li><strong><a href="https://www.figma.com/blog/how-figmas-databases-team-lived-to-tell-the-scale/">Figma: How Figma’s Databases Team Lived to Tell the Scale</a></strong> — Horizontal and vertical sharding strategies in Postgres at product scale.</li>
+<li><strong><a href="https://dl.acm.org/doi/10.1145/3035918.3056101">Amazon Aurora SIGMOD Paper</a></strong> — “Amazon Aurora: Design Considerations for High Throughput Cloud-Native Relational Databases.”</li>
+<li><strong><a href="https://dl.acm.org/doi/10.1145/1294261.1294281">Dynamo: Amazon’s Highly Available Key-Value Store</a></strong> — The 2007 SOSP paper that defined eventual consistency for distributed systems and influenced DynamoDB, Cassandra, and Riak.</li>
+<li><strong><a href="https://dl.acm.org/doi/10.1145/1365815.1365816">Bigtable: A Distributed Storage System for Structured Data</a></strong> — Google’s 2006 paper. The data model behind HBase and the inspiration for Cassandra’s wide-column storage.</li>
+<li><strong><a href="https://pdos.csail.mit.edu/6.824/">MIT 6.824 Distributed Systems</a></strong> — Raft, Zookeeper, Spanner. Free course materials. Required reading for consistency model questions.</li>
+<li><strong><a href="https://dl.acm.org/doi/10.1145/2360276.2360543">The PACELC Theorem</a></strong> — Daniel Abadi’s CAP extension. More useful for practical database selection than CAP alone.</li>
+<li><strong><a href="https://www.interdb.jp/pg/">The Internals of PostgreSQL</a></strong> — Free online book. Deep internals: MVCC, buffer manager, WAL mechanics.</li>
+<li><strong><a href="https://github.com/pgvector/pgvector">pgvector GitHub and Documentation</a></strong> — HNSW and IVFFlat index internals, tuning parameters, and benchmarks.</li>
+<li><strong><a href="https://jepsen.io/analyses">Jepsen Analyses</a></strong> — Kyle Kingsbury’s real-world consistency bug findings in production databases.</li>
+<li><strong><a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide">RocksDB Tuning Guide</a></strong> — Detailed explanation of LSM compaction strategies with production tuning advice.</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="12-staff-level-preparation-tips">12. Staff-Level Preparation Tips</h2><a class="sl-anchor-link" href="#12-staff-level-preparation-tips"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “12. Staff-Level Preparation Tips”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="what-to-study-deeper">What to Study Deeper</h3><a class="sl-anchor-link" href="#what-to-study-deeper"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “What to Study Deeper”</span></a></div>
+<ol>
+<li><strong>LSM tree internals</strong> — Read the RocksDB Wiki on compaction strategies. Run a local ScyllaDB instance and observe <code dir="auto">nodetool compactionstats</code> during a sustained write load test. Watch write amplification climb as you vary the compaction strategy.</li>
+<li><strong>Postgres internals</strong> — Work through <em>The Internals of PostgreSQL</em> (<a href="https://www.interdb.jp/pg/">interdb.jp</a>). Understand MVCC at the page level, the buffer manager’s clock-sweep algorithm, and how WAL segments are recycled. This depth is what separates “I use Postgres” from “I understand Postgres.”</li>
+<li><strong>Consistency models in the wild</strong> — Work through 3–4 Jepsen analyses (<a href="https://jepsen.io">jepsen.io</a>). They are real production bugs in real databases. Reading them trains your intuition for consistency failure modes faster than any textbook.</li>
+<li><strong>Aurora’s storage architecture</strong> — Read the SIGMOD paper (30 minutes). Be able to draw the 6-copy storage layout and explain quorum writes, log-only replication, and failover mechanics from memory in an interview.</li>
+<li><strong>Vector database tuning</strong> — Load 1M OpenAI embeddings into a local pgvector instance. Benchmark recall at <code dir="auto">ef_search=40</code>, <code dir="auto">ef_search=100</code>, and <code dir="auto">ef_search=200</code>. The recall numbers will give you concrete figures to cite in interviews.</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="what-to-build">What to Build</h3><a class="sl-anchor-link" href="#what-to-build"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “What to Build”</span></a></div>
+<ul>
+<li><strong>Migration harness</strong> — Build a dual-write + shadow-read comparison tool in Go that can sit in front of any two databases. This is the most directly interview-applicable project in this guide.</li>
+<li><strong>LSM compaction visualizer</strong> — Write a Go program that simulates STCS vs LCS compaction and plots space amplification and write amplification over time. Understanding it through code is faster than reading papers.</li>
+<li><strong>Hot key detector middleware</strong> — Build a Redis client middleware in Go that tracks per-key hit rates using a sliding window counter and logs an alert when any key exceeds N% of total ops.</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="how-to-demonstrate-staff-level-thinking-in-interviews">How to Demonstrate Staff-Level Thinking in Interviews</h3><a class="sl-anchor-link" href="#how-to-demonstrate-staff-level-thinking-in-interviews"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “How to Demonstrate Staff-Level Thinking in Interviews”</span></a></div>
+<p>In every database design question, answer in this order:</p>
+<ol>
+<li><strong>Access patterns first.</strong> Never say a database name until you have described the access pattern it needs to serve. “This service needs sub-10ms point reads on a user ID key and append-only writes at 200k/sec with no JOINs” leads to the right database. “I’ll use Cassandra” does not.</li>
+<li><strong>Failure modes second.</strong> “This works at 10k req/sec. At 100k, here’s where it breaks — tombstone accumulation on the delete path — and here’s how I’d address that by switching to TTLs.”</li>
+<li><strong>Operational cost third.</strong> “Adding Elasticsearch here means a permanent on-call rotation for a 3-node cluster, a reindex procedure for every mapping change, and heap tuning expertise. Is that trade-off worth it versus a Postgres GIN index with a 500ms tolerable search latency?”</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> In every database decision I’ve participated in as a staff engineer, the winning argument was never about raw performance numbers. It was about who would be paged at 3 AM when it broke, what the runbook looked like, and whether the team had successfully operated it before. <strong>The best database is the one your team can operate reliably at 3 AM — after six months of boring, uneventful stability.</strong></p>
+</blockquote>
+<hr>
+<p><em>Follow me on Medium for more staff-level system design deep dives in the Distributed Systems Deep Dive series.</em></p> </div> <footer class="sl-flex astro-3yyafb3n"> <div class="meta sl-flex astro-3yyafb3n">  <p>Last updated: <time datetime="2026-05-06T10:56:12.000Z">May 6, 2026</time></p> </div> <div class="pagination-links print:hidden astro-u2l5gyhi" dir="ltr"> <a href="/notes/distributed-systems/consistent-hashing/" rel="prev" class="astro-u2l5gyhi"> <svg aria-hidden="true" class="astro-u2l5gyhi astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg> <span class="astro-u2l5gyhi"> Previous <br class="astro-u2l5gyhi"> <span class="link-title astro-u2l5gyhi">Consistent Hashing: The Algorithm That Powers Distributed Databases, CDNs, and Caches at Scale</span> </span> </a> <a href="/notes/distributed-systems/redis-complete-guide/" rel="next" class="astro-u2l5gyhi"> <svg aria-hidden="true" class="astro-u2l5gyhi astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17.92 11.62a1.001 1.001 0 0 0-.21-.33l-5-5a1.003 1.003 0 1 0-1.42 1.42l3.3 3.29H7a1 1 0 0 0 0 2h7.59l-3.3 3.29a1.002 1.002 0 0 0 .325 1.639 1 1 0 0 0 1.095-.219l5-5a1 1 0 0 0 .21-.33 1 1 0 0 0 0-.76Z"/></svg> <span class="astro-u2l5gyhi"> Next <br class="astro-u2l5gyhi"> <span class="link-title astro-u2l5gyhi">Redis: The Complete Guide — From Internals to Staff-Level Mastery</span> </span> </a> </div>  </footer> </div> </div>  </main> </div> </div> </div> </div> </body></html>

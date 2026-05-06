@@ -1,0 +1,919 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-bguv2lll"> <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>ACID vs BASE: The Trade-off That Shapes Every Database Decision | Schadokar Notes</title><link rel="canonical" href="https://schadokar.github.io/notes/zen-mode/distributed-systems/acid-vs-base/"/><link rel="sitemap" href="/notes/sitemap-index.xml"/><link rel="shortcut icon" href="/notes/favicon.svg" type="image/svg+xml"/><meta name="generator" content="Astro v6.1.7"/><meta name="generator" content="Starlight v0.38.3"/><meta property="og:title" content="ACID vs BASE: The Trade-off That Shapes Every Database Decision"/><meta property="og:type" content="article"/><meta property="og:url" content="https://schadokar.github.io/notes/zen-mode/distributed-systems/acid-vs-base/"/><meta property="og:locale" content="en"/><meta property="og:description" content="Learn the fundamental difference between ACID and BASE consistency models, when to use each, tunable consistency quorum math, and how to monitor them in production."/><meta property="og:site_name" content="Schadokar Notes"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="Learn the fundamental difference between ACID and BASE consistency models, when to use each, tunable consistency quorum math, and how to monitor them in production."/><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/notes/_astro/print.DNXP8c50.css" media="print"><link rel="stylesheet" href="/notes/_astro/middleware.CRIh-IFc.css">
+<link rel="stylesheet" href="/notes/_astro/ZenMode@_@astro.rE326eKh.css">
+<link rel="stylesheet" href="/notes/_astro/Code.BcHZMqfA.css"><script type="module" src="/notes/_astro/page.qR1CXgzw.js"></script></head> <body class="astro-bguv2lll"> <a href="#_top" class="astro-7q3lir66">Skip to content</a> <div class="page sl-flex astro-vrdttmbt"> <header class="header astro-vrdttmbt"><div class="header astro-pe3pbc5a"> <div class="title-wrapper sl-flex astro-pe3pbc5a"> <a href="/notes/zen-mode/" class="site-title sl-flex astro-m46x6ez3">  <span class="astro-m46x6ez3" translate="no"> Schadokar Notes </span> </a> </div> <div class="sl-flex print:hidden astro-pe3pbc5a"> <site-search class=" astro-4npvrjzq" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}" data-mode="zen-mode" data-shortcuts="[]"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-4npvrjzq"> <svg aria-hidden="true" class="astro-4npvrjzq astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-4npvrjzq" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-4npvrjzq" style="display: none;"> <kbd class="astro-4npvrjzq">Ctrl</kbd><kbd class="astro-4npvrjzq">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-4npvrjzq"> <div class="dialog-frame sl-flex astro-4npvrjzq">  <button data-close-modal class="sl-flex md:sl-hidden astro-4npvrjzq"> Cancel </button> <div class="search-container astro-4npvrjzq"> <div id="starlight__search" class="astro-4npvrjzq"></div> </div> </div> </dialog> </site-search>  <script>
+  (() => {
+    const openBtn = document.querySelector("button[data-open-modal]");
+    const shortcut = openBtn?.querySelector("kbd");
+    if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+    const platformKey = shortcut.querySelector("kbd");
+    if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+      platformKey.textContent = "⌘";
+      openBtn.setAttribute("aria-keyshortcuts", "Meta+K");
+    }
+    shortcut.style.display = "";
+  })();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.qZjFznbc.js"></script>  </div> <div class="sl-hidden md:sl-flex print:hidden right-group astro-pe3pbc5a"> <div class="sl-flex social-icons astro-pe3pbc5a"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/distributed-systems/acid-vs-base" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to normal mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.08 10 10 10 6.93 0 10-5.7 10-10Zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16ZM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9ZM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1Z" /><path d="M14.22 9.72 12 11.94 9.78 9.72a.75.75 0 0 0-1.06 1.06L10.94 13l-2.22 2.22a.75.75 0 0 0 1.06 1.06L12 14.06l2.23 2.22a.75.75 0 0 0 1.06-1.06L13.06 13l2.22-2.22a.75.75 0 0 0-1.06-1.06Z" /> </svg></a><script type="module">function h(){const t=window.location.hash;document.querySelectorAll(".starlight-view-modes-switcher-a").forEach(e=>{e instanceof HTMLAnchorElement&&(e.href=e.href.split("#")[0]+t)})}h();window.addEventListener("hashchange",h);</script> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script> <script type="module">const r="starlight-theme",o=e=>e==="auto"||e==="dark"||e==="light"?e:"auto",c=()=>o(typeof localStorage<"u"&&localStorage.getItem(r));function n(e){typeof localStorage<"u"&&localStorage.setItem(r,e==="light"||e==="dark"?e:"")}const l=()=>matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";function t(e){StarlightThemeProvider.updatePickers(e),document.documentElement.dataset.theme=e==="auto"?l():e,n(e)}matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{c()==="auto"&&t("auto")});class s extends HTMLElement{constructor(){super(),t(c()),this.querySelector("select")?.addEventListener("change",a=>{a.currentTarget instanceof HTMLSelectElement&&t(o(a.currentTarget.value))})}}customElements.define("starlight-theme-select",s);</script> <script type="module">class s extends HTMLElement{constructor(){super();const e=this.querySelector("select");e&&(e.addEventListener("change",t=>{t.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=t.currentTarget.value)}),window.addEventListener("pageshow",t=>{if(!t.persisted)return;const n=e.querySelector("option[selected]")?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}}customElements.define("starlight-lang-select",s);</script> <button id="zen-mode-toggle" class="zen-mode-btn astro-hk5zd5ry" title="Zen Mode (Shift+Cmd+Z)" aria-label="Toggle zen mode"> <svg class="zen-mode-icon astro-hk5zd5ry" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <!-- Eye icon (normal state) --> <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" class="astro-hk5zd5ry"></path> <circle cx="12" cy="12" r="3" class="astro-hk5zd5ry"></circle> </svg> </button>  <script type="module">const o="zen-mode";function d(){return typeof window>"u"?!1:localStorage.getItem(o)==="true"}function c(e){typeof window>"u"||(localStorage.setItem(o,String(e)),r(e))}function i(){const e=d();c(!e)}function r(e){if(typeof document>"u")return;const t=document.documentElement;e?t.setAttribute("data-zen-mode","true"):t.removeAttribute("data-zen-mode")}function u(){if(typeof document>"u")return;const e=d();r(e)}u();const n=document.getElementById("zen-mode-toggle");n&&n.addEventListener("click",()=>{i()});document.addEventListener("keydown",e=>{(/Mac|iPhone|iPad|iPod/.test(navigator.platform)?e.metaKey:e.ctrlKey)&&e.shiftKey&&e.key==="Z"&&(e.preventDefault(),i())});</script> </div> </div></header> <nav class="sidebar print:hidden astro-vrdttmbt" aria-label="Main"> <starlight-menu-button class="print:hidden astro-jif73yzw"> <button aria-expanded="false" aria-label="Menu" aria-controls="starlight__sidebar" class="sl-flex md:sl-hidden astro-jif73yzw"> <svg aria-hidden="true" class="open-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg> <svg aria-hidden="true" class="close-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg> </button> </starlight-menu-button> <script type="module">class s extends HTMLElement{constructor(){super(),this.btn=this.querySelector("button"),this.btn.addEventListener("click",()=>this.toggleExpanded());const t=this.closest("nav");t&&t.addEventListener("keyup",e=>this.closeOnEscape(e))}setExpanded(t){this.setAttribute("aria-expanded",String(t)),document.body.toggleAttribute("data-mobile-menu-expanded",t)}toggleExpanded(){this.setExpanded(this.getAttribute("aria-expanded")!=="true")}closeOnEscape(t){t.code==="Escape"&&(this.setExpanded(!1),this.btn.focus())}}customElements.define("starlight-menu-button",s);</script>  <div id="starlight__sidebar" class="sidebar-pane astro-vrdttmbt"> <div class="sidebar-content sl-flex astro-vrdttmbt"> <div class="sidebar-search astro-6p6o3epk"> <site-search class="astro-6p6o3epk astro-v37mnknz" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-v37mnknz"> <svg aria-hidden="true" class="astro-v37mnknz astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-v37mnknz" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-v37mnknz" style="display: none;"> <kbd class="astro-v37mnknz">Ctrl</kbd><kbd class="astro-v37mnknz">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-v37mnknz"> <div class="dialog-frame sl-flex astro-v37mnknz">  <button data-close-modal class="sl-flex md:sl-hidden astro-v37mnknz"> Cancel </button> <div class="search-container astro-v37mnknz"> <div id="starlight__search" class="astro-v37mnknz"></div> </div> </div> </dialog> </site-search>  <script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.D2LyzZw5.js"></script>  </div> <nav class="section-switcher astro-6p6o3epk" aria-label="Sections"> <a href="/notes/" class="section-tab active astro-6p6o3epk"> Design Patterns </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Distributed Systems </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Notes </a> </nav> <sl-sidebar-state-persist data-hash="1j4n6kw" class="astro-kku4brbg"> <script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script>  <ul class="top-level astro-3ii7xxms"> <li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">distributed</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="0"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/circuit-breaker/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Circuit Breaker Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/saga/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Saga Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/outbox-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Transactional Outbox Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/cqrs/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">CQRS (Command Query Responsibility Segregation): A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/event-sourcing/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Event Sourcing: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/bulkhead/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bulkhead Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/retry-with-backoff/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Retry with Exponential Backoff: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/strangler-fig/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strangler Fig Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/sidecar/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Sidecar Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/distributed/repository/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Repository Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">behavioral</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="1"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/observer-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Observer Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/strategy-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strategy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/command-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Command Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/chain-of-responsibility-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Chain of Responsibility Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/state-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">State Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/template-method-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Template Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/behavioral/iterator-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Iterator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">structural</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="2"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/decorator/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Decorator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/adapter/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Adapter Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/proxy/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Proxy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/facade/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Facade Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/composite/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Composite Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/structural/bridge/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bridge Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">creational</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="3"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/creational/singleton/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Singleton Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/creational/factory-method/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Factory Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/creational/builder/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Builder Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/creational/abstract-factory/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Abstract Factory Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/creational/prototype/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Prototype Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <a href="/notes/zen-mode/design-patterns/" class="large astro-3ii7xxms"> <span class="astro-3ii7xxms">Design Patterns</span>  </a> </li> </ul>  <script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script> </sl-sidebar-state-persist> <div class="md:sl-hidden astro-6p6o3epk"> <div class="mobile-preferences sl-flex astro-wu23bvmt"> <div class="social-icons astro-wu23bvmt"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/distributed-systems/acid-vs-base" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to normal mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.08 10 10 10 6.93 0 10-5.7 10-10Zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16ZM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9ZM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1Z" /><path d="M14.22 9.72 12 11.94 9.78 9.72a.75.75 0 0 0-1.06 1.06L10.94 13l-2.22 2.22a.75.75 0 0 0 1.06 1.06L12 14.06l2.23 2.22a.75.75 0 0 0 1.06-1.06L13.06 13l2.22-2.22a.75.75 0 0 0-1.06-1.06Z" /> </svg></a> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script>   </div> </div> </div> </div> </nav> <div class="main-frame astro-vrdttmbt">  <script type="module">const a=document.getElementById("starlight__sidebar"),n=a?.querySelector("sl-sidebar-state-persist"),o="sl-sidebar-state",i=()=>{let t=[];const e=n?.dataset.hash||"";try{const s=sessionStorage.getItem(o),r=JSON.parse(s||"{}");Array.isArray(r.open)&&r.hash===e&&(t=r.open)}catch{}return{hash:e,open:t,scroll:a?.scrollTop||0}},c=t=>{try{sessionStorage.setItem(o,JSON.stringify(t))}catch{}},d=()=>c(i()),l=(t,e)=>{const s=i();s.open[e]=t,c(s)};n?.addEventListener("click",t=>{if(!(t.target instanceof Element))return;const e=t.target.closest("summary")?.closest("details");if(!e)return;const s=e.querySelector("sl-sidebar-restore"),r=parseInt(s?.dataset.index||"");isNaN(r)||l(!e.open,r)});addEventListener("visibilitychange",()=>{document.visibilityState==="hidden"&&d()});addEventListener("pageHide",d);</script> <div class="lg:sl-flex astro-67yu43on"> <aside class="right-sidebar-container print:hidden astro-67yu43on"> <div class="right-sidebar astro-67yu43on"> <div class="lg:sl-hidden astro-pb3aqygn"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-doynk5tl"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-doynk5tl"><details id="starlight__mobile-toc" class="astro-doynk5tl"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-doynk5tl"><span class="toggle sl-flex astro-doynk5tl">On this page<svg aria-hidden="true" class="caret astro-doynk5tl astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></span><span class="display-current astro-doynk5tl"></span></summary><div class="dropdown astro-doynk5tl"><ul class="isMobile astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#1-overview" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">1. Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-step-by-step" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts (Step-by-Step)</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#mental-model-first" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Mental Model First</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid--atomicity-consistency-isolation-durability" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID — Atomicity, Consistency, Isolation, Durability</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base--basically-available-soft-state-eventually-consistent" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE — Basically Available, Soft State, Eventually Consistent</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#the-cap-theorem-connection" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">The CAP Theorem Connection</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#scale-behavior-10x--100x--1000x" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Scale Behavior: 10x / 100x / 1000x</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-use-cases" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID Use Cases</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base-use-cases" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE Use Cases</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-gotchas" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID Gotchas</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base-gotchas" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE Gotchas</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-acid-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use ACID When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-acid-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use ACID When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-base-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use BASE When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-base-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use BASE When:</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-vs-base-side-by-side" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID vs BASE Side-by-Side</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#database-comparison" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Database Comparison</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-monitoring--observability" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. Monitoring &amp; Observability</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#postgresql-acid-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">PostgreSQL (ACID) Metrics</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#cassandra-base-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Cassandra (BASE) Metrics</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#application-layer-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Application-Layer Metrics</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Interview Questions</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-walk-me-through-the-difference-between-acid-and-base-and-when-youd-use-each" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: “Walk me through the difference between ACID and BASE, and when you’d use each.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-design-a-payment-system-that-handles-100k-transactionssec-globally" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: “Design a payment system that handles 100k transactions/sec globally.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-what-is-eventual-consistency-and-how-do-you-handle-read-your-own-writes-in-a-base-system" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: “What is eventual consistency, and how do you handle read-your-own-writes in a BASE system?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-your-cassandra-cluster-shows-split-brain-during-a-partition-what-happens-to-your-data-and-how-do-you-recover" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: “Your Cassandra cluster shows split-brain during a partition. What happens to your data, and how do you recover?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-youre-running-cassandra-with-replication-factor-3-walk-me-through-the-trade-offs-of-using-one-vs-quorum-vs-all-for-reads-and-writes" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: “You’re running Cassandra with replication factor 3. Walk me through the trade-offs of using ONE vs QUORUM vs ALL for reads and writes.”</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#10-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">10. Staff-Level Preparation Tips</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#build--experiment" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Build &amp; Experiment</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#staff-level-thinking-in-design-reviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Staff-Level Thinking in Design Reviews</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#connections-to-broader-system-design" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Connections to Broader System Design</span> </a>  </li> </ul> </li> </ul></div></details></nav></mobile-starlight-toc><script type="module" src="/notes/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.hwBsy0Mo.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-pb3aqygn"><div class="sl-container astro-pb3aqygn"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#1-overview" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">1. Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-step-by-step" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts (Step-by-Step)</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#mental-model-first" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Mental Model First</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid--atomicity-consistency-isolation-durability" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID — Atomicity, Consistency, Isolation, Durability</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base--basically-available-soft-state-eventually-consistent" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE — Basically Available, Soft State, Eventually Consistent</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#the-cap-theorem-connection" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">The CAP Theorem Connection</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#scale-behavior-10x--100x--1000x" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Scale Behavior: 10x / 100x / 1000x</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-use-cases" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID Use Cases</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base-use-cases" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE Use Cases</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-gotchas" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID Gotchas</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#base-gotchas" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">BASE Gotchas</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-acid-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use ACID When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-acid-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use ACID When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-base-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use BASE When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-base-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use BASE When:</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#acid-vs-base-side-by-side" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">ACID vs BASE Side-by-Side</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#database-comparison" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Database Comparison</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-monitoring--observability" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. Monitoring &amp; Observability</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#postgresql-acid-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">PostgreSQL (ACID) Metrics</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#cassandra-base-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Cassandra (BASE) Metrics</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#application-layer-metrics" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Application-Layer Metrics</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Interview Questions</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-walk-me-through-the-difference-between-acid-and-base-and-when-youd-use-each" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: “Walk me through the difference between ACID and BASE, and when you’d use each.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-design-a-payment-system-that-handles-100k-transactionssec-globally" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: “Design a payment system that handles 100k transactions/sec globally.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-what-is-eventual-consistency-and-how-do-you-handle-read-your-own-writes-in-a-base-system" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: “What is eventual consistency, and how do you handle read-your-own-writes in a BASE system?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-your-cassandra-cluster-shows-split-brain-during-a-partition-what-happens-to-your-data-and-how-do-you-recover" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: “Your Cassandra cluster shows split-brain during a partition. What happens to your data, and how do you recover?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-youre-running-cassandra-with-replication-factor-3-walk-me-through-the-trade-offs-of-using-one-vs-quorum-vs-all-for-reads-and-writes" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: “You’re running Cassandra with replication factor 3. Walk me through the trade-offs of using ONE vs QUORUM vs ALL for reads and writes.”</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#10-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">10. Staff-Level Preparation Tips</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#build--experiment" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Build &amp; Experiment</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#staff-level-thinking-in-design-reviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Staff-Level Thinking in Design Reviews</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#connections-to-broader-system-design" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Connections to Broader System Design</span> </a>  </li> </ul> </li> </ul></nav></starlight-toc><script type="module" src="/notes/_astro/TableOfContents.astro_astro_type_script_index_0_lang.FuRcXuRY.js"></script> <div class="starlight-view-modes-table-of-contents-container astro-ycta3xxa"><h2 class="astro-ycta3xxa">View Modes</h2><ul class="astro-ycta3xxa"><li class="starlight-view-modes-table-of-contents-item astro-ycta3xxa"><a href="/notes/distributed-systems/acid-vs-base" class="starlight-view-modes-switcher-a astro-ycta3xxa">Switch to normal mode</a><script>
+  (() => {
+    const shortcuts = document.querySelectorAll("kbd:has(kbd)");
+    for (const shortcut of shortcuts) {
+      if (!(shortcut instanceof HTMLElement)) return;
+      const platformKeys = shortcut.querySelectorAll("kbd");
+      for (const platformKey of platformKeys) {
+        if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+          platformKey.textContent = platformKey.textContent
+            .replace("Ctrl", "⌘")
+            .replace("Shift", "⇧")
+            .replace("Alt", "⌥");
+        }
+      }
+      shortcut.style.display = "";
+    }
+  })();
+</script></li></ul></div></div></div> </div> </aside> <div class="main-pane astro-67yu43on">  <main class="astro-bguv2lll" lang="en" dir="ltr">    <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <h1 id="_top" class="astro-j6tvhyss">ACID vs BASE: The Trade-off That Shapes Every Database Decision</h1> <div class="starlight-view-modes-page-title-switcher astro-uvozaax5"> <a href="/notes/distributed-systems/acid-vs-base" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to normal mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.08 10 10 10 6.93 0 10-5.7 10-10Zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16ZM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9ZM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1Z" /><path d="M14.22 9.72 12 11.94 9.78 9.72a.75.75 0 0 0-1.06 1.06L10.94 13l-2.22 2.22a.75.75 0 0 0 1.06 1.06L12 14.06l2.23 2.22a.75.75 0 0 0 1.06-1.06L13.06 13l2.22-2.22a.75.75 0 0 0-1.06-1.06Z" /> </svg></a> </div>  </div> </div> <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <div class="sl-markdown-content">  <div class="starlight-view-modes-zen-mode-table-of-contents-footer starlight-view-modes-zen-mode-no-header starlight-view-modes-zen-mode-no-sidebar">  <div class="sl-heading-wrapper level-h2"><h2 id="1-overview">1. Overview</h2><a class="sl-anchor-link" href="#1-overview"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “1. Overview”</span></a></div>
+<p>Every database system makes a fundamental promise: <em>how consistent will your data be under failure?</em></p>
+<p>ACID and BASE are two opposing answers to that question. ACID says: “always consistent, no matter what.” BASE says: “usually available, eventually consistent.” Neither is wrong — they’re optimized for different realities.</p>
+<p>If you design systems without understanding this trade-off, you will either build a banking app on a database that loses money, or a social network that grinds to a halt under load. This article gives you the mental model, the internals, and the judgment to choose right every time.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="2-core-concepts-step-by-step">2. Core Concepts (Step-by-Step)</h2><a class="sl-anchor-link" href="#2-core-concepts-step-by-step"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2. Core Concepts (Step-by-Step)”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="mental-model-first">Mental Model First</h3><a class="sl-anchor-link" href="#mental-model-first"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Mental Model First”</span></a></div>
+<p>Think of a <strong>bank</strong> vs a <strong>scoreboard</strong>.</p>
+<p>A bank must never show you $500 when you have $200. Two concurrent withdrawals must not both succeed if funds are insufficient. Correctness beats everything.</p>
+<p>A scoreboard (think live sports score) can show slightly stale data. If you see “42-38” and the real score is “42-40”, that’s fine — you’ll get the update in a second. Availability and speed beat perfect accuracy.</p>
+<p>ACID = bank. BASE = scoreboard.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="acid--atomicity-consistency-isolation-durability">ACID — Atomicity, Consistency, Isolation, Durability</h3><a class="sl-anchor-link" href="#acid--atomicity-consistency-isolation-durability"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “ACID — Atomicity, Consistency, Isolation, Durability”</span></a></div>
+<div class="expressive-code"><link rel="stylesheet" href="/notes/_astro/ec.xvy5v.css"><script type="module" src="/notes/_astro/ec.0vx5m.js"></script><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">┌──────────────────────────────────────────────────────────┐</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│                       ACID Properties                    │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│                                                          │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  A — Atomicity    All or nothing. No partial writes.     │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  C — Consistency  DB moves from valid state → valid state│</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  I — Isolation    Concurrent txns don't see each other   │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  D — Durability   Committed data survives crashes        │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">└──────────────────────────────────────────────────────────┘</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="┌──────────────────────────────────────────────────────────┐│                       ACID Properties                    ││                                                          ││  A — Atomicity    All or nothing. No partial writes.     ││  C — Consistency  DB moves from valid state → valid state││  I — Isolation    Concurrent txns don&#x27;t see each other   ││  D — Durability   Committed data survives crashes        │└──────────────────────────────────────────────────────────┘"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h4"><h4 id="atomicity">Atomicity</h4><a class="sl-anchor-link" href="#atomicity"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Atomicity”</span></a></div>
+<p>A transaction is a unit. Either all operations commit, or none do.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Transfer $100 from Alice to Bob</span></div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Both operations succeed or both fail — never partial</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">tx, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> db.</span><span style="--0:#6F42C1;--1:#B392F0">Begin</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> { </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> err }</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> tx.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"UPDATE accounts SET balance = balance - 100 WHERE id = $1"</span><span style="--0:#24292E;--1:#E1E4E8">, aliceID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> { tx.</span><span style="--0:#6F42C1;--1:#B392F0">Rollback</span><span style="--0:#24292E;--1:#E1E4E8">(); </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> err }</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> tx.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"UPDATE accounts SET balance = balance + 100 WHERE id = $1"</span><span style="--0:#24292E;--1:#E1E4E8">, bobID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> { tx.</span><span style="--0:#6F42C1;--1:#B392F0">Rollback</span><span style="--0:#24292E;--1:#E1E4E8">(); </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> err }</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> tx.</span><span style="--0:#6F42C1;--1:#B392F0">Commit</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Transfer $100 from Alice to Bob// Both operations succeed or both fail — never partialtx, err := db.Begin()if err != nil { return err }_, err = tx.Exec(&#x22;UPDATE accounts SET balance = balance - 100 WHERE id = $1&#x22;, aliceID)if err != nil { tx.Rollback(); return err }_, err = tx.Exec(&#x22;UPDATE accounts SET balance = balance + 100 WHERE id = $1&#x22;, bobID)if err != nil { tx.Rollback(); return err }return tx.Commit()"><div></div></button></div></figure></div>
+<p>Without atomicity: Alice loses $100, Bob gets nothing. Database in corrupt state.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="consistency">Consistency</h4><a class="sl-anchor-link" href="#consistency"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Consistency”</span></a></div>
+<p>The DB enforces invariants. Foreign key constraints, CHECK constraints, uniqueness — all upheld before and after every transaction.</p>
+<p>Consistency is not a database-only concern. Application-level invariants (e.g., “an order can’t have negative items”) are <em>your</em> job to enforce in code.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The “C” in ACID is the weakest property — it’s mostly enforced by the application, not the DB engine. Many papers argue ACID should really be “AID”. The DB only enforces schema-level constraints. <strong>Concrete example:</strong> Nothing in PostgreSQL prevents your code from inserting <code dir="auto">INSERT INTO orders (quantity) VALUES (-5)</code> — the DB commits it happily because both states (before and after) are “valid” according to the schema. Unless <em>you</em> add <code dir="auto">CHECK (quantity > 0)</code>, the invariant doesn’t exist. Consistency in ACID means “the DB won’t violate constraints that are defined” — not “the DB prevents all bad data.”</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h4"><h4 id="isolation">Isolation</h4><a class="sl-anchor-link" href="#isolation"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Isolation”</span></a></div>
+<p>Concurrent transactions behave as if they ran serially.</p>
+<p>SQL standard defines 4 isolation levels:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Isolation Level</th><th>Dirty Read</th><th>Non-Repeatable Read</th><th>Phantom Read</th></tr></thead><tbody><tr><td>READ UNCOMMITTED</td><td>✅ possible</td><td>✅ possible</td><td>✅ possible</td></tr><tr><td>READ COMMITTED</td><td>❌ blocked</td><td>✅ possible</td><td>✅ possible</td></tr><tr><td>REPEATABLE READ</td><td>❌ blocked</td><td>❌ blocked</td><td>✅ possible</td></tr><tr><td>SERIALIZABLE</td><td>❌ blocked</td><td>❌ blocked</td><td>❌ blocked</td></tr></tbody></table>
+<p><em>Higher isolation = fewer anomalies = more locking = lower throughput.</em></p>
+<p>PostgreSQL default: <code dir="auto">READ COMMITTED</code>. MySQL (InnoDB) default: <code dir="auto">REPEATABLE READ</code>.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="durability">Durability</h4><a class="sl-anchor-link" href="#durability"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Durability”</span></a></div>
+<p>Committed data survives crashes. Achieved via <strong>Write-Ahead Log (WAL)</strong>: writes go to disk log before the actual data pages. On crash recovery, replay the log.</p>
+<pre class="mermaid">flowchart LR
+    A[Application] -->|write| B[WAL on Disk]
+    B -->|flush| C[Data Pages]
+    B -.->|recovery point on crash| B</pre>
+<p><em>WAL ensures durability at the cost of write amplification (every write hits disk twice).</em></p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="base--basically-available-soft-state-eventually-consistent">BASE — Basically Available, Soft State, Eventually Consistent</h3><a class="sl-anchor-link" href="#base--basically-available-soft-state-eventually-consistent"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “BASE — Basically Available, Soft State, Eventually Consistent”</span></a></div>
+<p>BASE was coined by Eric Brewer (CAP theorem, Google) to describe how large-scale distributed systems work in practice.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">┌──────────────────────────────────────────────────────────────┐</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│                        BASE Properties                       │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│                                                              │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  BA — Basically Available  System stays up even under fault  │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  S  — Soft State           Data may change without input     │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">│  E  — Eventually Consistent Replicas converge over time      │</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">└──────────────────────────────────────────────────────────────┘</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="┌──────────────────────────────────────────────────────────────┐│                        BASE Properties                       ││                                                              ││  BA — Basically Available  System stays up even under fault  ││  S  — Soft State           Data may change without input     ││  E  — Eventually Consistent Replicas converge over time      │└──────────────────────────────────────────────────────────────┘"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h4"><h4 id="basically-available">Basically Available</h4><a class="sl-anchor-link" href="#basically-available"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Basically Available”</span></a></div>
+<p>The system responds to requests even when some nodes are down. Responses may be stale or partial — but not “connection refused.”</p>
+<p>Example: Amazon DynamoDB serves reads from healthy replicas even if one region is down. You may get old data, but you get <em>something</em>.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="soft-state">Soft State</h4><a class="sl-anchor-link" href="#soft-state"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Soft State”</span></a></div>
+<p>The system’s state may change over time <em>without any new input</em> due to background replication, TTL expiry, or consistency syncing.</p>
+<p>Example: Cassandra uses anti-entropy repair to sync replicas. A key’s value can change on a node simply because a background sync ran.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="eventually-consistent">Eventually Consistent</h4><a class="sl-anchor-link" href="#eventually-consistent"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Eventually Consistent”</span></a></div>
+<p>Given no new writes, all replicas will <em>eventually</em> converge to the same value. The window of inconsistency could be milliseconds or seconds.</p>
+<pre class="mermaid">sequenceDiagram
+    participant Client
+    participant NodeA
+    participant NodeB
+    participant NodeC
+
+    Client->>NodeA: write X=5
+    NodeA-->>NodeA: X=5 ✓
+    Note over NodeB: X=3 (stale)
+    Note over NodeC: X=3 (stale)
+
+    NodeA->>NodeB: replicate X=5
+    NodeA->>NodeC: replicate X=5
+    Note over NodeB: X=5 ✓
+    Note over NodeC: X=5 ✓
+    Note over NodeA,NodeC: All replicas converged</pre>
+<p><em>“Eventually” is not defined by a clock. Under network partition, “eventually” could be minutes.</em></p>
+<div class="sl-heading-wrapper level-h4"><h4 id="tunable-consistency-the-quorum-math">Tunable Consistency (The Quorum Math)</h4><a class="sl-anchor-link" href="#tunable-consistency-the-quorum-math"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Tunable Consistency (The Quorum Math)”</span></a></div>
+<p>Most BASE systems don’t force you to be fully eventual. Cassandra and DynamoDB let you <strong>tune</strong> consistency per query using quorum settings.</p>
+<p>The key formula:</p>
+<p>$$W + R > N \implies \text{strong consistency}$$</p>
+<p>Where:</p>
+<ul>
+<li><strong>N</strong> = number of replicas (typically 3)</li>
+<li><strong>W</strong> = number of replicas that must acknowledge a write</li>
+<li><strong>R</strong> = number of replicas that must respond to a read</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Setting</th><th>W</th><th>R</th><th>W+R vs N</th><th>Consistency</th><th>Latency</th></tr></thead><tbody><tr><td><code dir="auto">ONE</code> / <code dir="auto">ONE</code></td><td>1</td><td>1</td><td>2 ≤ 3</td><td>Eventual</td><td>Lowest</td></tr><tr><td><code dir="auto">QUORUM</code> / <code dir="auto">QUORUM</code></td><td>2</td><td>2</td><td>4 > 3</td><td>Strong</td><td>Medium</td></tr><tr><td><code dir="auto">ALL</code> / <code dir="auto">ONE</code></td><td>3</td><td>1</td><td>4 > 3</td><td>Strong reads</td><td>Write-heavy penalty</td></tr><tr><td><code dir="auto">ONE</code> / <code dir="auto">ALL</code></td><td>1</td><td>3</td><td>4 > 3</td><td>Strong reads</td><td>Read-heavy penalty</td></tr></tbody></table>
+<p>With <code dir="auto">QUORUM</code> on a 3-replica cluster: writes go to 2 nodes, reads from 2 nodes. At least 1 node overlaps → you always get latest value.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Cassandra Go driver — tuning consistency per query</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">cluster </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> gocql.</span><span style="--0:#6F42C1;--1:#B392F0">NewCluster</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"node1"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"node2"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"node3"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">cluster.Consistency </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> gocql.Quorum </span><span style="--0:#616972;--1:#99A0A6">// default for session</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">session, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> cluster.</span><span style="--0:#6F42C1;--1:#B392F0">CreateSession</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Critical read: use QUORUM</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">q </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> session.</span><span style="--0:#6F42C1;--1:#B392F0">Query</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"SELECT balance FROM accounts WHERE id = ?"</span><span style="--0:#24292E;--1:#E1E4E8">, userID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">q.</span><span style="--0:#6F42C1;--1:#B392F0">Consistency</span><span style="--0:#24292E;--1:#E1E4E8">(gocql.Quorum)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Analytics read: ONE is fine, faster</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">q2 </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> session.</span><span style="--0:#6F42C1;--1:#B392F0">Query</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"SELECT count FROM page_views WHERE page = ?"</span><span style="--0:#24292E;--1:#E1E4E8">, pageID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">q2.</span><span style="--0:#6F42C1;--1:#B392F0">Consistency</span><span style="--0:#24292E;--1:#E1E4E8">(gocql.One)</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Cassandra Go driver — tuning consistency per querycluster := gocql.NewCluster(&#x22;node1&#x22;, &#x22;node2&#x22;, &#x22;node3&#x22;)cluster.Consistency = gocql.Quorum // default for sessionsession, _ := cluster.CreateSession()// Critical read: use QUORUMq := session.Query(&#x22;SELECT balance FROM accounts WHERE id = ?&#x22;, userID)q.Consistency(gocql.Quorum)// Analytics read: ONE is fine, fasterq2 := session.Query(&#x22;SELECT count FROM page_views WHERE page = ?&#x22;, pageID)q2.Consistency(gocql.One)"><div></div></button></div></figure></div>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Tunable consistency is the real-world bridge between ACID and BASE. Most production systems don’t live at the extremes — they use <code dir="auto">QUORUM</code> for writes to critical data (account balances) and <code dir="auto">ONE</code> for reads of low-stakes data (page views, recommendations). Knowing the quorum math and being able to explain <em>which consistency level for which operation</em> is what separates staff candidates from senior ones in system design interviews.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="the-cap-theorem-connection">The CAP Theorem Connection</h3><a class="sl-anchor-link" href="#the-cap-theorem-connection"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “The CAP Theorem Connection”</span></a></div>
+<pre class="mermaid">graph TD
+    subgraph CAP Theorem
+        C[Consistency]
+        A[Availability]
+        P[Partition Tolerance]
+    end
+
+    C ---|"CP Systems&#x3C;br/>HBase, ZooKeeper, etcd"| P
+    C ---|"CA Systems&#x3C;br/>PostgreSQL (single node)"| A
+    A ---|"AP Systems&#x3C;br/>Cassandra, DynamoDB, CouchDB"| P
+
+    style C fill:#4a90d9,color:#fff
+    style A fill:#7bc67e,color:#fff
+    style P fill:#e8a838,color:#fff</pre>
+<p><em>Under a network partition, you MUST choose: consistency (CP) or availability (AP). You cannot have both. This is why ACID and BASE exist as separate schools.</em></p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> CAP is binary and often misapplied. In practice, use <strong>PACELC</strong>: when no Partition (P), choose between Latency (L) and Consistency (C). Real systems tune on a spectrum — Cassandra lets you dial from eventual to strong consistency per-query via <code dir="auto">QUORUM</code> settings.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="scale-behavior-10x--100x--1000x">Scale Behavior: 10x / 100x / 1000x</h3><a class="sl-anchor-link" href="#scale-behavior-10x--100x--1000x"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Scale Behavior: 10x / 100x / 1000x”</span></a></div>
+<p>How the ACID vs BASE decision changes as load grows:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>TPS (writes)</th><th>What Works</th><th>What Breaks</th><th>Staff-Level Move</th></tr></thead><tbody><tr><td><strong>1k</strong></td><td>Single PostgreSQL. <code dir="auto">SERIALIZABLE</code> isolation is fine. Vertical scaling.</td><td>Nothing yet — enjoy it.</td><td>Focus on schema design, indexing, and connection pooling. Don’t over-engineer.</td></tr><tr><td><strong>10k</strong></td><td>PostgreSQL with connection pool tuning (PgBouncer), read replicas for read scale. <code dir="auto">READ COMMITTED</code> preferred over <code dir="auto">SERIALIZABLE</code> for throughput.</td><td>Lock contention on hot rows. Connection pool exhaustion if not tuned. Long transactions block others.</td><td>Partition hot tables. Introduce read replicas. Monitor lock wait times. Consider logical replication for analytics queries.</td></tr><tr><td><strong>100k</strong></td><td>Single PostgreSQL primary can’t handle it. Options: <strong>sharded PostgreSQL</strong> (Citus), <strong>distributed SQL</strong> (CockroachDB, Spanner), or move writes to <strong>BASE</strong> systems (Cassandra, DynamoDB).</td><td>Single-primary write bottleneck. Cross-shard transactions become expensive. Replication lag on replicas causes stale reads.</td><td>Shard by tenant/customer ID. Use Saga pattern for cross-shard consistency. Evaluate CockroachDB if you need distributed ACID — measure the latency cost.</td></tr><tr><td><strong>1M+</strong></td><td>BASE is almost mandatory for writes. Cassandra, DynamoDB, or ScyllaDB for write path. ACID database (PostgreSQL) for financial reconciliation and source-of-truth.</td><td>Even distributed SQL (Spanner) hits cost ceilings at this scale. Coordination overhead dominates. Network becomes the bottleneck.</td><td><strong>Polyglot persistence</strong>: writes → Cassandra/Kafka; reads → materialized views in PostgreSQL or Elasticsearch. Use event sourcing: ACID log (Kafka) + BASE projections. This is how Uber, Netflix, and LinkedIn operate.</td></tr></tbody></table>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The 10k → 100k TPS boundary is where most teams are forced from ACID to BASE (or distributed SQL). This is the exact inflection point interviewers probe. Know it cold: “At what scale did you need to move away from a single PostgreSQL primary, and what did you move to?” Have a real answer for this.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="3-use-cases">3. Use Cases</h2><a class="sl-anchor-link" href="#3-use-cases"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “3. Use Cases”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="acid-use-cases">ACID Use Cases</h3><a class="sl-anchor-link" href="#acid-use-cases"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “ACID Use Cases”</span></a></div>
+<p><strong>Financial systems (banks, payments)</strong>
+Stripe, PayPal, every bank — double-entry bookkeeping requires atomicity. A debit without a credit = lost money. PostgreSQL with SERIALIZABLE isolation.</p>
+<p><strong>Order management systems</strong>
+Amazon orders: inventory decrement + order creation + payment charge must be atomic. Partial success = overselling or unpaid orders.</p>
+<p><strong>Healthcare records</strong>
+Medical records require audit trails and strict consistency. Missing a write = misdiagnosis risk.</p>
+<p><strong>Booking systems (airline seats, hotel rooms)</strong>
+Two users must not both book the same seat. Requires SERIALIZABLE or <code dir="auto">SELECT FOR UPDATE</code>.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Pessimistic locking — prevents double booking</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">tx.</span><span style="--0:#6F42C1;--1:#B392F0">QueryRow</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"SELECT id FROM seats WHERE id=$1 AND status='available' FOR UPDATE"</span><span style="--0:#24292E;--1:#E1E4E8">, seatID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">tx.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"UPDATE seats SET status='booked', user_id=$1 WHERE id=$2"</span><span style="--0:#24292E;--1:#E1E4E8">, userID, seatID)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">tx.</span><span style="--0:#6F42C1;--1:#B392F0">Commit</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Pessimistic locking — prevents double bookingtx.QueryRow(&#x22;SELECT id FROM seats WHERE id=$1 AND status=&#x27;available&#x27; FOR UPDATE&#x22;, seatID)tx.Exec(&#x22;UPDATE seats SET status=&#x27;booked&#x27;, user_id=$1 WHERE id=$2&#x22;, userID, seatID)tx.Commit()"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="base-use-cases">BASE Use Cases</h3><a class="sl-anchor-link" href="#base-use-cases"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “BASE Use Cases”</span></a></div>
+<p><strong>Social media feeds (Twitter/X, Instagram)</strong>
+Showing slightly stale follower counts or like counts is acceptable. Availability beats perfect accuracy. Cassandra powers Instagram’s feed at massive scale.</p>
+<p><strong>DNS</strong>
+Classic BASE example. DNS updates propagate over minutes/hours. Worldwide availability matters more than instant consistency.</p>
+<p><strong>Shopping cart / recommendations</strong>
+Amazon’s Dynamo paper (2007) was written specifically for the shopping cart. Items added to cart should never fail — even if it means seeing slightly stale state.</p>
+<p><strong>Leaderboards, counters, analytics</strong>
+Redis with approximate counters (HyperLogLog), Cassandra for time-series data. Exact count at every millisecond not required.</p>
+<p><strong>Event sourcing systems</strong>
+Kafka + downstream consumers. Events are written fast; read models build up eventually. Classic BASE pattern.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="4-gotchas">4. Gotchas</h2><a class="sl-anchor-link" href="#4-gotchas"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4. Gotchas”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="acid-gotchas">ACID Gotchas</h3><a class="sl-anchor-link" href="#acid-gotchas"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “ACID Gotchas”</span></a></div>
+<p><strong>1. SERIALIZABLE is expensive — most teams don’t use it</strong></p>
+<p>Most apps use <code dir="auto">READ COMMITTED</code>. This allows non-repeatable reads. If your app reads a balance twice in one request and gets different values, you have a bug. Most devs don’t realize this until money disappears.</p>
+<p><strong>2. Long transactions kill performance</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">Transaction open for 10 minutes → holds row locks → other queries wait → connection pool exhaustion → cascading failure</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="Transaction open for 10 minutes → holds row locks → other queries wait → connection pool exhaustion → cascading failure"><div></div></button></div></figure></div>
+<p>Never hold transactions open across network calls (HTTP requests to external services, user input waits, etc.).</p>
+<p><strong>3. “Consistent” doesn’t mean “correct”</strong></p>
+<p>ACID consistency enforces schema constraints, not business logic. If your code has a bug that debits without crediting, the DB commits it happily. Both states (before and after) are “valid” according to the schema.</p>
+<p><strong>4. Durability is only as good as your fsync settings</strong></p>
+<p>PostgreSQL <code dir="auto">synchronous_commit = off</code> gives 3x write speed but risks data loss on crash. Many “ACID” databases in cloud environments are configured for performance, not full durability.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> AWS Aurora gives you durability across 3 AZs with 6 storage replicas. Crash recovery in &#x3C;30s. But it’s still <code dir="auto">READ COMMITTED</code> by default. Isolation level is orthogonal to durability — always check both settings.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="base-gotchas">BASE Gotchas</h3><a class="sl-anchor-link" href="#base-gotchas"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “BASE Gotchas”</span></a></div>
+<p><strong>1. “Eventually” has no upper bound</strong></p>
+<p>Under network partition, eventual consistency window is unbounded. Your SLA may say “99.9% of reads return data &#x3C;500ms old” but Cassandra won’t guarantee that.</p>
+<p><strong>2. Conflict resolution is hard and usually wrong</strong></p>
+<p>When two nodes accept concurrent writes to the same key, you need a merge strategy:</p>
+<ul>
+<li>Last-Write-Wins (LWW): data loss if clocks skew</li>
+<li>CRDT (Conflict-free Replicated Data Types): complex, limited to specific data structures</li>
+<li>Application-level merge: your problem, not the DB’s</li>
+</ul>
+<p>Most teams use LWW and don’t realize they’re silently dropping writes.</p>
+<p><strong>3. Read-your-writes consistency is often violated</strong></p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="plaintext" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">User writes: POST /profile {name: "Alice"}</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292e;--1:#e1e4e8">User reads:  GET /profile → returns "Bob" (stale replica)</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="User writes: POST /profile {name: &#x22;Alice&#x22;}User reads:  GET /profile → returns &#x22;Bob&#x22; (stale replica)"><div></div></button></div></figure></div>
+<p>User sees their own update disappear. Feels like a bug. Requires sticky sessions or <code dir="auto">QUORUM</code> reads.</p>
+<p><strong>4. Transactions in BASE systems are bolted on and limited</strong></p>
+<p>DynamoDB transactions work within a single region. Cassandra’s LWT (Lightweight Transactions) use Paxos but are 4-5x slower than regular writes and limited to a single partition. “We added transactions” often means “we added very limited, very slow transactions.”</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="5-where-to-use-and-where-not-to-use">5. Where to Use (and Where NOT to Use)</h2><a class="sl-anchor-link" href="#5-where-to-use-and-where-not-to-use"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “5. Where to Use (and Where NOT to Use)”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="use-acid-when">Use ACID When:</h3><a class="sl-anchor-link" href="#use-acid-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Use ACID When:”</span></a></div>
+<ul>
+<li>
+<p><strong>Money moves (payments, payroll, banking)</strong> — A partial transfer (debit without credit) is unrecoverable data corruption. No eventual consistency window is acceptable when real dollars are in flight.</p>
+</li>
+<li>
+<p><strong>Inventory with hard limits (seats, rooms, licenses)</strong> — Overselling a concert seat means two people show up for one chair. You need <code dir="auto">SELECT FOR UPDATE</code> or SERIALIZABLE — optimistic retries in a BASE system can still double-book under race conditions.</p>
+</li>
+<li>
+<p><strong>Legal/compliance data (audit logs, medical records)</strong> — Regulators audit exact state at exact timestamps. If your audit log is eventually consistent, your compliance report can show the wrong state. HIPAA and SOX don’t accept “it’ll converge.”</p>
+</li>
+<li>
+<p><strong>Data integrity is a hard requirement, not a nice-to-have</strong> — If a data anomaly means a pager goes off and humans scramble, ACID pays for itself. The cost of coordination is less than the cost of repair.</p>
+</li>
+<li>
+<p><strong>Scale is &#x3C;100k writes/sec</strong> — Modern PostgreSQL on good hardware handles this. Don’t pay the BASE complexity tax when you don’t need to.</p>
+</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="do-not-use-acid-when">Do NOT Use ACID When:</h3><a class="sl-anchor-link" href="#do-not-use-acid-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Do NOT Use ACID When:”</span></a></div>
+<ul>
+<li>
+<p><strong>You need multi-region active-active writes</strong> — ACID commit across regions requires synchronous replication. US-East to EU-West is ~80ms round trip. Every write paying 80ms+ coordination latency makes your P99 unacceptable at scale. BASE systems replicate asynchronously — writes are local-speed.</p>
+</li>
+<li>
+<p><strong>Write throughput is millions/sec</strong> — Row-level locks become global bottlenecks. Even distributed SQL (Spanner) hits cost ceilings above 1M TPS. At this scale, coordination cost dominates.</p>
+</li>
+<li>
+<p><strong>Data model is naturally denormalized</strong> — Documents, time-series, graph data don’t benefit from relational ACID. You’re paying the transaction overhead for data that doesn’t need cross-table joins.</p>
+</li>
+<li>
+<p><strong>Slight staleness is acceptable and cost of coordination is too high</strong> — If showing a like count that’s 2 seconds old is fine, don’t pay for strong consistency. The engineering complexity and latency cost aren’t worth it.</p>
+</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="use-base-when">Use BASE When:</h3><a class="sl-anchor-link" href="#use-base-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Use BASE When:”</span></a></div>
+<ul>
+<li>
+<p><strong>Global scale with multi-region writes</strong> — Users in Tokyo and London both write. BASE lets each region accept writes locally and sync asynchronously. DynamoDB Global Tables and Cassandra multi-DC do this natively.</p>
+</li>
+<li>
+<p><strong>High availability is a hard SLA (five 9s)</strong> — Five 9s = 5.26 minutes downtime/year. ACID databases with single primaries can’t achieve this — failover takes 30-60 seconds minimum. BASE systems with no single point of failure can.</p>
+</li>
+<li>
+<p><strong>Data is naturally replicated (user profiles, preferences, social graphs)</strong> — User profile reads vastly outnumber writes. Eventual consistency on a profile update (visible in &#x3C;1s across all replicas) is invisible to the user.</p>
+</li>
+<li>
+<p><strong>Conflict is rare and resolvable</strong> — Shopping carts: if two tabs add different items, merge both. Counters: if two increments conflict, CRDT counter resolves automatically. When conflicts are mechanically resolvable, BASE works.</p>
+</li>
+<li>
+<p><strong>Eventual consistency is transparent to users</strong> — Feeds, recommendations, search indices — users don’t notice or care if data is 1-2 seconds stale.</p>
+</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="do-not-use-base-when">Do NOT Use BASE When:</h3><a class="sl-anchor-link" href="#do-not-use-base-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Do NOT Use BASE When:”</span></a></div>
+<ul>
+<li>
+<p><strong>Financial correctness is required</strong> — LWW conflict resolution can silently drop a payment. No business stakeholder will accept “the transfer was lost because two replicas disagreed and we picked the wrong one.”</p>
+</li>
+<li>
+<p><strong>You need cross-entity transactions</strong> — “Create order + decrement inventory + charge payment” atomically. Cassandra can’t do this. You’ll need Saga pattern on top of BASE, which is significantly more complex than a PostgreSQL transaction.</p>
+</li>
+<li>
+<p><strong>Conflicts cannot be resolved automatically</strong> — Concurrent seat booking: two users book the same seat on different replicas. There’s no merge — one loses. BASE systems can’t resolve this without coordination, which defeats the purpose.</p>
+</li>
+<li>
+<p><strong>Your team lacks ops expertise to tune replication and repair</strong> — BASE shifts complexity from the DB to the operator. If nobody on your team knows how to run <code dir="auto">nodetool repair</code>, tune consistency levels, and monitor hinted handoff queues, you’ll silently lose data.</p>
+</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="6-versus">6. Versus</h2><a class="sl-anchor-link" href="#6-versus"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6. Versus”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="acid-vs-base-side-by-side">ACID vs BASE Side-by-Side</h3><a class="sl-anchor-link" href="#acid-vs-base-side-by-side"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “ACID vs BASE Side-by-Side”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>ACID</th><th>BASE</th></tr></thead><tbody><tr><td>Consistency model</td><td>Strong (immediate)</td><td>Eventual (tunable)</td></tr><tr><td>Availability under fault</td><td>May reject requests</td><td>Always serves (possibly stale)</td></tr><tr><td>Write throughput</td><td>Limited by locking</td><td>Very high (no coordination)</td></tr><tr><td>Multi-region writes</td><td>Very hard</td><td>Native support</td></tr><tr><td>Data loss risk</td><td>Near zero (with WAL + fsync)</td><td>Possible (LWW conflicts, async repl.)</td></tr><tr><td>Complexity for devs</td><td>Low (DB handles it)</td><td>High (devs handle conflicts)</td></tr><tr><td>Transaction support</td><td>Full, cross-table</td><td>Limited, single-partition</td></tr><tr><td>Typical databases</td><td>PostgreSQL, MySQL, CockroachDB</td><td>Cassandra, DynamoDB, Couchbase</td></tr><tr><td>Cost at scale</td><td>High (vertical scale)</td><td>Lower (horizontal scale)</td></tr></tbody></table>
+<div class="sl-heading-wrapper level-h3"><h3 id="database-comparison">Database Comparison</h3><a class="sl-anchor-link" href="#database-comparison"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Database Comparison”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Database</th><th>Model</th><th>Default Consistency</th><th>Multi-region Writes</th><th>Tunable</th></tr></thead><tbody><tr><td>PostgreSQL</td><td>ACID</td><td>READ COMMITTED</td><td>No (single primary)</td><td>No</td></tr><tr><td>MySQL InnoDB</td><td>ACID</td><td>REPEATABLE READ</td><td>No</td><td>No</td></tr><tr><td>CockroachDB</td><td>ACID</td><td>SERIALIZABLE</td><td>Yes (distributed)</td><td>No</td></tr><tr><td>Cassandra</td><td>BASE</td><td>Eventual (tunable)</td><td>Yes</td><td>Yes (per-query CL)</td></tr><tr><td>DynamoDB</td><td>BASE</td><td>Eventual (or strong)</td><td>Yes (Global Tables)</td><td>Yes (per-read)</td></tr><tr><td>MongoDB</td><td>Mixed</td><td>Eventual (or ACID txn)</td><td>Yes (limited)</td><td>Partial</td></tr><tr><td>Redis</td><td>Mixed</td><td>Strong (single node)</td><td>Eventual (cluster)</td><td>No</td></tr></tbody></table>
+<p><em>CockroachDB and Google Spanner are the “have both” options — distributed ACID via atomic clocks / hybrid-logical clocks. Very expensive. Worth it for global financial systems.</em></p>
+<p><strong>Choose ACID when:</strong> correctness is non-negotiable and scale fits a single primary or distributed SQL.</p>
+<p><strong>Choose BASE when:</strong> global scale, massive write throughput, and slight staleness is acceptable.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="7-monitoring--observability">7. Monitoring &#x26; Observability</h2><a class="sl-anchor-link" href="#7-monitoring--observability"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “7. Monitoring &#x26; Observability”</span></a></div>
+<p>You picked ACID or BASE. Now you need to <em>prove</em> it’s working. This section covers what to measure, what to alert on, and what to look at when things break at 2 AM.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="postgresql-acid-metrics">PostgreSQL (ACID) Metrics</h3><a class="sl-anchor-link" href="#postgresql-acid-metrics"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “PostgreSQL (ACID) Metrics”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>What It Tells You</th><th>Alert Threshold</th><th>How to Get It</th></tr></thead><tbody><tr><td><strong>Replication lag</strong></td><td>How far replicas are behind primary</td><td>> 1s for sync replicas; > 30s for async</td><td><code dir="auto">pg_stat_replication.replay_lag</code></td></tr><tr><td><strong>Lock wait time</strong></td><td>Transactions blocked waiting for locks</td><td>> 5s average</td><td><code dir="auto">pg_stat_activity</code> where <code dir="auto">wait_event_type = 'Lock'</code></td></tr><tr><td><strong>Transaction duration</strong></td><td>Long-running txns holding locks</td><td>> 30s (investigate); > 5min (kill)</td><td><code dir="auto">pg_stat_activity.xact_start</code></td></tr><tr><td><strong>WAL size / generation rate</strong></td><td>Write volume; disk pressure</td><td>WAL dir > 80% of allocated space</td><td><code dir="auto">pg_stat_wal</code> (PG14+) or <code dir="auto">pg_ls_waldir()</code></td></tr><tr><td><strong>Connection pool utilization</strong></td><td>Pool exhaustion risk</td><td>> 80% of max connections</td><td>PgBouncer <code dir="auto">SHOW POOLS</code> or <code dir="auto">pg_stat_activity</code> count</td></tr><tr><td><strong>Dead tuples / bloat</strong></td><td>Autovacuum not keeping up</td><td>> 10% dead tuples on hot tables</td><td><code dir="auto">pg_stat_user_tables.n_dead_tup</code></td></tr></tbody></table>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="sql" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Find long-running transactions (kill candidates)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">SELECT</span><span style="--0:#24292E;--1:#E1E4E8"> pid, </span><span style="--0:#BF3441;--1:#F97583">now</span><span style="--0:#24292E;--1:#E1E4E8">() </span><span style="--0:#BF3441;--1:#F97583">-</span><span style="--0:#24292E;--1:#E1E4E8"> xact_start </span><span style="--0:#BF3441;--1:#F97583">AS</span><span style="--0:#24292E;--1:#E1E4E8"> duration, query, </span><span style="--0:#BF3441;--1:#F97583">state</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">FROM</span><span style="--0:#24292E;--1:#E1E4E8"> pg_stat_activity</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">WHERE</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">state</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">'idle'</span></div></div><div class="ec-line"><div class="code"><span class="indent">  </span><span style="--0:#BF3441;--1:#F97583">AND</span><span style="--0:#24292E;--1:#E1E4E8"> xact_start </span><span style="--0:#BF3441;--1:#F97583">&#x3C;</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">now</span><span style="--0:#24292E;--1:#E1E4E8">() </span><span style="--0:#BF3441;--1:#F97583">-</span><span style="--0:#24292E;--1:#E1E4E8"> interval </span><span style="--0:#032F62;--1:#9ECBFF">'30 seconds'</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">ORDER BY</span><span style="--0:#24292E;--1:#E1E4E8"> duration </span><span style="--0:#BF3441;--1:#F97583">DESC</span><span style="--0:#24292E;--1:#E1E4E8">;</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">-- Check replication lag</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">SELECT</span><span style="--0:#24292E;--1:#E1E4E8"> client_addr,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">       </span></span><span style="--0:#24292E;--1:#E1E4E8">replay_lag,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">       </span></span><span style="--0:#24292E;--1:#E1E4E8">write_lag,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">       </span></span><span style="--0:#24292E;--1:#E1E4E8">flush_lag</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">FROM</span><span style="--0:#24292E;--1:#E1E4E8"> pg_stat_replication;</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="-- Find long-running transactions (kill candidates)SELECT pid, now() - xact_start AS duration, query, stateFROM pg_stat_activityWHERE state != &#x27;idle&#x27;  AND xact_start < now() - interval &#x27;30 seconds&#x27;ORDER BY duration DESC;-- Check replication lagSELECT client_addr,       replay_lag,       write_lag,       flush_lagFROM pg_stat_replication;"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="cassandra-base-metrics">Cassandra (BASE) Metrics</h3><a class="sl-anchor-link" href="#cassandra-base-metrics"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Cassandra (BASE) Metrics”</span></a></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>What It Tells You</th><th>Alert Threshold</th><th>How to Get It</th></tr></thead><tbody><tr><td><strong>Read/Write latency (per CL)</strong></td><td>Actual consistency cost</td><td>P99 read > 50ms (QUORUM); P99 write > 100ms</td><td>JMX: <code dir="auto">ReadLatency</code> / <code dir="auto">WriteLatency</code> per keyspace</td></tr><tr><td><strong>Hinted handoff queue depth</strong></td><td>Pending writes for downed nodes</td><td>> 0 for > 10 minutes</td><td>JMX: <code dir="auto">StorageProxy.TotalHints</code></td></tr><tr><td><strong>Dropped mutations</strong></td><td>Writes that timed out and were lost</td><td>> 0 (critical)</td><td>JMX: <code dir="auto">DroppedMessage.MUTATION</code></td></tr><tr><td><strong>Repair status</strong></td><td>Whether anti-entropy has run recently</td><td>Last repair > 7 days ago (gc_grace risk)</td><td><code dir="auto">nodetool repair</code> logs / repair scheduler</td></tr><tr><td><strong>SSTable count per table</strong></td><td>Compaction backlog</td><td>> 32 SSTables on a hot table</td><td><code dir="auto">nodetool cfstats</code></td></tr><tr><td><strong>GC pause duration</strong></td><td>Stop-the-world pauses causing timeouts</td><td>> 500ms (investigate); > 2s (critical)</td><td>GC logs / JMX</td></tr></tbody></table>
+<div class="expressive-code"><figure class="frame is-terminal"><figcaption class="header"><span class="title"></span><span class="sr-only">Terminal window</span></figcaption><pre data-language="bash" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6"># Check for dropped mutations (silent data loss)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#6F42C1;--1:#B392F0">nodetool</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">tpstats</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">|</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">grep</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">-i</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">mutation</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6"># Check hinted handoff backlog</span></div></div><div class="ec-line"><div class="code"><span style="--0:#6F42C1;--1:#B392F0">nodetool</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">status</span><span style="--0:#24292E;--1:#E1E4E8">  </span><span style="--0:#616972;--1:#99A0A6"># look for DN (down) nodes</span></div></div><div class="ec-line"><div class="code"><span style="--0:#6F42C1;--1:#B392F0">nodetool</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">info</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">|</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">grep</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">"Hints"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6"># Verify repair is running</span></div></div><div class="ec-line"><div class="code"><span style="--0:#6F42C1;--1:#B392F0">nodetool</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">repair</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">-st</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">&#x3C;keyspace></span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="nodetool tpstats | grep -i mutationnodetool status  # look for DN (down) nodesnodetool info | grep &#x22;Hints&#x22;nodetool repair -st <keyspace>"><div></div></button></div></figure></div>
+<p><strong>Critical alert: Dropped mutations > 0 means writes are being silently lost.</strong> This is the #1 silent data loss cause in Cassandra. If you see this, either nodes are overloaded or your write timeout is too low.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="application-layer-metrics">Application-Layer Metrics</h3><a class="sl-anchor-link" href="#application-layer-metrics"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Application-Layer Metrics”</span></a></div>
+<p>These metrics are DB-agnostic and are <em>your</em> responsibility to instrument:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>What It Tells You</th><th>Alert Threshold</th></tr></thead><tbody><tr><td><strong>Stale read rate</strong></td><td>% of reads returning data older than X seconds</td><td>> 1% reads stale by > 5s</td></tr><tr><td><strong>Conflict resolution events</strong></td><td>Concurrent writes resolved by LWW or merge</td><td>Sudden spike (> 2x baseline)</td></tr><tr><td><strong>Idempotency key collision rate</strong></td><td>Retries hitting existing keys (good) vs duplicate processing (bad)</td><td>Collision rate > 5% warrants investigation</td></tr><tr><td><strong>Transaction retry rate</strong></td><td>Serialization failures requiring retry (PostgreSQL)</td><td>> 10% of transactions retrying</td></tr><tr><td><strong>Cross-service saga compensation rate</strong></td><td>Sagas that triggered rollback/compensation</td><td>> 1% of sagas compensating</td></tr></tbody></table>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Instrumenting stale read detection in Go</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">readUser</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">userID</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">) (</span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">User</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#BF3441;--1:#F97583">error</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">user, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> cassandraSession.</span><span style="--0:#6F42C1;--1:#B392F0">Query</span><span style="--0:#24292E;--1:#E1E4E8">(</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#032F62;--1:#9ECBFF">"SELECT id, name, updated_at FROM users WHERE id = ?"</span><span style="--0:#24292E;--1:#E1E4E8">, userID,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">WithContext</span><span style="--0:#24292E;--1:#E1E4E8">(ctx).</span><span style="--0:#6F42C1;--1:#B392F0">Consistency</span><span style="--0:#24292E;--1:#E1E4E8">(gocql.One).</span><span style="--0:#6F42C1;--1:#B392F0">Scan</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#BF3441;--1:#F97583">...</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Measure staleness</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">staleness </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> time.</span><span style="--0:#6F42C1;--1:#B392F0">Since</span><span style="--0:#24292E;--1:#E1E4E8">(user.UpdatedAt)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">metrics.</span><span style="--0:#6F42C1;--1:#B392F0">Histogram</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"read_staleness_seconds"</span><span style="--0:#24292E;--1:#E1E4E8">, staleness.</span><span style="--0:#6F42C1;--1:#B392F0">Seconds</span><span style="--0:#24292E;--1:#E1E4E8">(),</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#032F62;--1:#9ECBFF">"table"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"users"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"consistency"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"ONE"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> staleness </span><span style="--0:#BF3441;--1:#F97583">></span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">5</span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#24292E;--1:#E1E4E8">time.Second {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">metrics.</span><span style="--0:#6F42C1;--1:#B392F0">Counter</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"stale_reads_total"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#005CC5;--1:#79B8FF">1</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"table"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"users"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> user, err</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Instrumenting stale read detection in Gofunc readUser(ctx context.Context, userID string) (*User, error) {    user, err := cassandraSession.Query(        &#x22;SELECT id, name, updated_at FROM users WHERE id = ?&#x22;, userID,    ).WithContext(ctx).Consistency(gocql.One).Scan(...)    // Measure staleness    staleness := time.Since(user.UpdatedAt)    metrics.Histogram(&#x22;read_staleness_seconds&#x22;, staleness.Seconds(),        &#x22;table&#x22;, &#x22;users&#x22;, &#x22;consistency&#x22;, &#x22;ONE&#x22;)    if staleness > 5*time.Second {        metrics.Counter(&#x22;stale_reads_total&#x22;, 1, &#x22;table&#x22;, &#x22;users&#x22;)    }    return user, err}"><div></div></button></div></figure></div>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The monitoring you set up reveals whether your ACID/BASE choice was correct. If your PostgreSQL lock wait time is consistently > 5s and transaction retries > 10%, you’ve outgrown single-primary ACID — it’s time to shard or move to BASE. If your Cassandra dropped mutations are > 0, your BASE system is silently losing data — you need to tune write timeouts or add capacity. The metrics <em>tell you when to switch strategies.</em> Staff engineers set up these dashboards before going to production, not after the incident.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="8-references">8. References</h2><a class="sl-anchor-link" href="#8-references"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “8. References”</span></a></div>
+<ul>
+<li><a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">Amazon Dynamo Paper (2007)</a> — foundational BASE architecture paper</li>
+<li><a href="https://research.google/pubs/pub39966/">Google Spanner Paper (2012)</a> — distributed ACID at global scale</li>
+<li><a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer’s CAP Theorem — A Decade Later</a> — Brewer himself revisiting CAP</li>
+<li><a href="https://dataintensive.net/">Designing Data-Intensive Applications — Martin Kleppmann</a> — best book on this topic, chapters 7 &#x26; 9</li>
+<li><a href="https://queue.acm.org/detail.cfm?id=3025012">Pat Helland — Life Beyond Distributed Transactions (2007)</a> — seminal paper on building correct systems without distributed ACID; directly addresses the ACID-to-BASE migration reality in microservices</li>
+<li><a href="https://www.cockroachlabs.com/docs/stable/architecture/overview.html">CockroachDB Architecture Overview</a> — best publicly available explanation of how distributed SQL achieves ACID with Raft consensus and MVCC</li>
+<li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL Isolation Levels Docs</a></li>
+<li><a href="https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html">Cassandra Consistency Levels Docs</a></li>
+<li><a href="http://dbmsmusings.blogspot.com/2010/04/problems-with-cap-and-yahoos-little.html">PACELC Model — Daniel Abadi</a> — extends CAP with latency dimension</li>
+<li><a href="https://jepsen.io/analyses">Jepsen Analyses — Kyle Kingsbury</a> — real-world consistency testing results for specific databases (Cassandra, MongoDB, CockroachDB, etc.)</li>
+<li><a href="https://jepsen.io/talks">Strange Loop 2013 — Kyle Kingsbury’s Jepsen talks</a> — real-world consistency failures in production databases</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="9-interview-questions">9. Interview Questions</h2><a class="sl-anchor-link" href="#9-interview-questions"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “9. Interview Questions”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="q1-walk-me-through-the-difference-between-acid-and-base-and-when-youd-use-each">Q1: “Walk me through the difference between ACID and BASE, and when you’d use each.”</h3><a class="sl-anchor-link" href="#q1-walk-me-through-the-difference-between-acid-and-base-and-when-youd-use-each"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q1: “Walk me through the difference between ACID and BASE, and when you’d use each.””</span></a></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>ACID = correctness guarantees; BASE = availability guarantees</li>
+<li>CAP theorem context — partition forces a choice</li>
+<li>Concrete examples: ACID for payments, BASE for social feeds</li>
+<li>Trade-offs: ACID limits scale; BASE shifts complexity to application</li>
+</ul>
+<p><strong>Common mistakes:</strong></p>
+<ul>
+<li>Saying “ACID is better” — no context, no judgment</li>
+<li>Not knowing isolation levels (interviewers probe here)</li>
+<li>Confusing “consistency” in CAP with “consistency” in ACID (they mean different things)</li>
+</ul>
+<p><strong>What interviewers want:</strong> trade-off thinking, not memorized definitions.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q2-design-a-payment-system-that-handles-100k-transactionssec-globally">Q2: “Design a payment system that handles 100k transactions/sec globally.”</h3><a class="sl-anchor-link" href="#q2-design-a-payment-system-that-handles-100k-transactionssec-globally"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q2: “Design a payment system that handles 100k transactions/sec globally.””</span></a></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Single-region ACID DB won’t do 100k TPS globally (latency + coordination)</li>
+<li>Options: CockroachDB / Spanner (distributed ACID) vs sharded PostgreSQL</li>
+<li>Saga pattern for cross-service transactions</li>
+<li>Idempotency keys to handle retries safely</li>
+<li>Read replicas for read scaling; writes still single-primary or consensus-based</li>
+</ul>
+<p><strong>Saga pattern in action:</strong></p>
+<pre class="mermaid">sequenceDiagram
+    participant OrderSvc
+    participant PaymentSvc
+    participant InventorySvc
+    participant NotifySvc
+
+    OrderSvc->>PaymentSvc: 1. Charge $50
+    PaymentSvc-->>OrderSvc: charged ✓
+
+    OrderSvc->>InventorySvc: 2. Reserve 1 unit
+    InventorySvc-->>OrderSvc: reserved ✓
+
+    OrderSvc->>NotifySvc: 3. Send confirmation
+    NotifySvc-->>OrderSvc: sent ✓
+    Note over OrderSvc: All steps succeeded — commit
+
+    rect rgb(255, 220, 220)
+        Note over OrderSvc: If step 2 fails...
+        OrderSvc->>PaymentSvc: Compensate: refund $50
+        PaymentSvc-->>OrderSvc: refunded ✓
+        Note over OrderSvc: Saga rolled back
+    end</pre>
+<p><em>Each service has its own ACID database. Cross-service consistency is achieved via compensating transactions, not distributed ACID. This is how Uber and Stripe handle payments at scale.</em></p>
+<p><strong>Common mistakes:</strong></p>
+<ul>
+<li>Picking Cassandra for financial data without addressing conflict resolution</li>
+<li>Not addressing what happens during network partition</li>
+<li>Ignoring the difference between “100k reads” and “100k writes” per second</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q3-what-is-eventual-consistency-and-how-do-you-handle-read-your-own-writes-in-a-base-system">Q3: “What is eventual consistency, and how do you handle read-your-own-writes in a BASE system?”</h3><a class="sl-anchor-link" href="#q3-what-is-eventual-consistency-and-how-do-you-handle-read-your-own-writes-in-a-base-system"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q3: “What is eventual consistency, and how do you handle read-your-own-writes in a BASE system?””</span></a></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Define eventual consistency clearly (convergence, not a time SLA)</li>
+<li>Read-your-own-writes solutions:
+<ol>
+<li>Sticky session routing (always read from replica you wrote to)</li>
+<li>QUORUM read after QUORUM write (Cassandra)</li>
+<li>Monotonic reads via version vectors</li>
+<li>Client-side caching of last-written value</li>
+</ol>
+</li>
+</ul>
+<p><strong>Common mistakes:</strong></p>
+<ul>
+<li>Saying “use QUORUM everywhere” without knowing the latency cost</li>
+<li>Not knowing that even QUORUM doesn’t guarantee read-your-own-writes in all failure scenarios</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q4-your-cassandra-cluster-shows-split-brain-during-a-partition-what-happens-to-your-data-and-how-do-you-recover">Q4: “Your Cassandra cluster shows split-brain during a partition. What happens to your data, and how do you recover?”</h3><a class="sl-anchor-link" href="#q4-your-cassandra-cluster-shows-split-brain-during-a-partition-what-happens-to-your-data-and-how-do-you-recover"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q4: “Your Cassandra cluster shows split-brain during a partition. What happens to your data, and how do you recover?””</span></a></div>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Both partitions accept writes → divergent state</li>
+<li>LWW: losing writes based on timestamp skew</li>
+<li>Hinted handoff during partition; anti-entropy repair after rejoin</li>
+<li>Application impact depends on consistency level used</li>
+<li>Prevention: avoid LWW for critical data, use CRDTs or versioning</li>
+</ul>
+<p><strong>What interviewers want:</strong> real production knowledge, not textbook answers.</p>
+<hr>
+<div class="sl-heading-wrapper level-h3"><h3 id="q5-youre-running-cassandra-with-replication-factor-3-walk-me-through-the-trade-offs-of-using-one-vs-quorum-vs-all-for-reads-and-writes">Q5: “You’re running Cassandra with replication factor 3. Walk me through the trade-offs of using ONE vs QUORUM vs ALL for reads and writes.”</h3><a class="sl-anchor-link" href="#q5-youre-running-cassandra-with-replication-factor-3-walk-me-through-the-trade-offs-of-using-one-vs-quorum-vs-all-for-reads-and-writes"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q5: “You’re running Cassandra with replication factor 3. Walk me through the trade-offs of using ONE vs QUORUM vs ALL for reads and writes.””</span></a></div>
+<p><strong>Key points:</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>CL</th><th>Replicas Ack</th><th>Latency</th><th>Consistency</th><th>Availability</th></tr></thead><tbody><tr><td><code dir="auto">ONE</code></td><td>1 of 3</td><td>Fastest (local replica)</td><td>Weakest — may read stale</td><td>Highest — tolerates 2 node failures</td></tr><tr><td><code dir="auto">QUORUM</code></td><td>2 of 3</td><td>Medium (wait for 2nd)</td><td>Strong if W+R>N</td><td>Tolerates 1 node failure</td></tr><tr><td><code dir="auto">ALL</code></td><td>3 of 3</td><td>Slowest (wait for all)</td><td>Strongest</td><td>Zero tolerance — 1 node down = failure</td></tr></tbody></table>
+<ul>
+<li><code dir="auto">ONE</code>/<code dir="auto">ONE</code> → eventual consistency. Fast, but stale reads possible. Good for: analytics, recommendations, non-critical reads.</li>
+<li><code dir="auto">QUORUM</code>/<code dir="auto">QUORUM</code> → strong consistency. <code dir="auto">W(2) + R(2) > N(3)</code>. Read always sees latest write. Good for: user profiles, balances, anything that needs read-your-writes.</li>
+<li><code dir="auto">ALL</code>/<code dir="auto">ONE</code> → all replicas get write, but fast reads. Good for: write-once data (events, logs). Reads are always fresh but writes fail if any node is down.</li>
+<li><code dir="auto">ONE</code>/<code dir="auto">ALL</code> → fast writes, but reads hit every replica. Rarely used in practice — expensive reads.</li>
+</ul>
+<p><strong>Common mistakes:</strong></p>
+<ul>
+<li>Not knowing the quorum math (<code dir="auto">W + R > N</code>)</li>
+<li>Saying “just use QUORUM for everything” without acknowledging the availability trade-off (can’t tolerate 2 node failures with QUORUM)</li>
+<li>Not mentioning that QUORUM across data centers means cross-DC latency (use <code dir="auto">LOCAL_QUORUM</code> for local DC consistency)</li>
+<li>Forgetting that <code dir="auto">ALL</code> turns your AP system into a CP system — you lose the availability benefit you chose Cassandra for</li>
+</ul>
+<p><strong>What interviewers want:</strong> you can make <em>per-operation</em> consistency decisions, not just a single cluster-wide setting. Staff engineers tune consistency per query based on business criticality.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="10-staff-level-preparation-tips">10. Staff-Level Preparation Tips</h2><a class="sl-anchor-link" href="#10-staff-level-preparation-tips"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “10. Staff-Level Preparation Tips”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="study-deeper">Study Deeper</h3><a class="sl-anchor-link" href="#study-deeper"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Study Deeper”</span></a></div>
+<ol>
+<li><strong>Read Kleppmann’s DDIA</strong> — chapters 7 (Transactions) and 9 (Consistency and Consensus) are required reading</li>
+<li><strong>Read the Dynamo paper</strong> — understand vector clocks, sloppy quorum, anti-entropy. This is the original BASE architecture</li>
+<li><strong>Read Pat Helland’s “Life Beyond Distributed Transactions”</strong> — this paper addresses the reality of building correct systems in microservice architectures where distributed ACID is impractical. Core insight: entities must manage their own consistency; cross-entity coordination uses workflow (sagas), not transactions</li>
+<li><strong>Understand Spanner’s TrueTime</strong> — distributed ACID is possible with atomic clocks; know the trade-offs vs Cassandra</li>
+<li><strong>Learn CRDT fundamentals</strong> — sets, counters, last-write-wins registers. Riak and Redis use these</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="build--experiment">Build &#x26; Experiment</h3><a class="sl-anchor-link" href="#build--experiment"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Build &#x26; Experiment”</span></a></div>
+<ul>
+<li>Run Jepsen tests against a local Cassandra cluster — induce partitions and observe divergence</li>
+<li>Build a small Go service that does a bank transfer in PostgreSQL under concurrent load — see where isolation levels matter</li>
+<li>Set up CockroachDB locally; run the same transfer workload; compare performance vs PostgreSQL</li>
+<li><strong>Build a tunable consistency demo:</strong> write to Cassandra with <code dir="auto">ONE</code>, read with <code dir="auto">ONE</code> → observe stale reads. Switch to <code dir="auto">QUORUM</code>/<code dir="auto">QUORUM</code> → staleness disappears, latency goes up. Measure the exact cost.</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="staff-level-thinking-in-design-reviews">Staff-Level Thinking in Design Reviews</h3><a class="sl-anchor-link" href="#staff-level-thinking-in-design-reviews"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Staff-Level Thinking in Design Reviews”</span></a></div>
+<ul>
+<li>Never just say “use PostgreSQL” or “use Cassandra” — always justify with write throughput, consistency requirements, and failure mode analysis</li>
+<li>Push teams to define their consistency requirements explicitly: “what’s the worst case if a user sees stale data for 5 seconds?”</li>
+<li>Introduce PACELC — show you know CAP is too binary for real decisions</li>
+<li>Ask about conflict resolution in every BASE system proposal: “what happens when two nodes accept concurrent writes to the same key?”</li>
+<li><strong>Ask about monitoring:</strong> “How will we know if our consistency model is working? What metric will we alert on?” If the team can’t answer this, the design isn’t ready.</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="connections-to-broader-system-design">Connections to Broader System Design</h3><a class="sl-anchor-link" href="#connections-to-broader-system-design"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Connections to Broader System Design”</span></a></div>
+<ul>
+<li><strong>Saga Pattern</strong> — how to get atomicity across services without distributed ACID</li>
+<li><strong>Outbox Pattern</strong> — how to combine ACID DB writes with event publishing reliably</li>
+<li><strong>CQRS</strong> — read models can be BASE (eventual); write models should be ACID</li>
+<li><strong>Event Sourcing</strong> — the log is ACID (append-only); projections are BASE (eventually consistent)</li>
+</ul>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The most important skill here is not knowing ACID vs BASE — every senior engineer knows that. The staff-level skill is knowing <em>where on the spectrum your system needs to sit</em>, negotiating that with product and business stakeholders, and designing the safeguards (idempotency, compensation transactions, monitoring) when you choose BASE. The DB is a detail. The consistency model is the architecture decision.</p>
+</blockquote>  </div>  </div> <footer class="sl-flex astro-3yyafb3n"> <div class="meta sl-flex astro-3yyafb3n">   </div> <div class="pagination-links print:hidden astro-u2l5gyhi" dir="ltr">   </div>  </footer> </div> </div>  </main> </div> </div> </div> </div> </body></html>

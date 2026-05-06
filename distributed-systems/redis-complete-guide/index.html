@@ -1,0 +1,1116 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-bguv2lll"> <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Redis: The Complete Guide — From Internals to Staff-Level Mastery | Schadokar Notes</title><link rel="canonical" href="https://schadokar.github.io/notes/distributed-systems/redis-complete-guide/"/><link rel="sitemap" href="/notes/sitemap-index.xml"/><link rel="shortcut icon" href="/notes/favicon.svg" type="image/svg+xml"/><meta name="generator" content="Astro v6.1.7"/><meta name="generator" content="Starlight v0.38.3"/><meta property="og:title" content="Redis: The Complete Guide — From Internals to Staff-Level Mastery"/><meta property="og:type" content="article"/><meta property="og:url" content="https://schadokar.github.io/notes/distributed-systems/redis-complete-guide/"/><meta property="og:locale" content="en"/><meta property="og:description" content="Deep dive into Redis internals, persistence, clustering, write strategies, and production best practices. Everything you need for staff-level system design interviews."/><meta property="og:site_name" content="Schadokar Notes"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="Deep dive into Redis internals, persistence, clustering, write strategies, and production best practices. Everything you need for staff-level system design interviews."/><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/notes/_astro/print.DNXP8c50.css" media="print"><link rel="stylesheet" href="/notes/_astro/middleware.CRIh-IFc.css">
+<link rel="stylesheet" href="/notes/_astro/Code.BcHZMqfA.css"><script type="module" src="/notes/_astro/page.qR1CXgzw.js"></script></head> <body class="astro-bguv2lll"> <a href="#_top" class="astro-7q3lir66">Skip to content</a> <div class="page sl-flex astro-vrdttmbt"> <header class="header astro-vrdttmbt"><div class="header astro-pe3pbc5a"> <div class="title-wrapper sl-flex astro-pe3pbc5a"> <a href="/notes/" class="site-title sl-flex astro-m46x6ez3">  <span class="astro-m46x6ez3" translate="no"> Schadokar Notes </span> </a> </div> <div class="sl-flex print:hidden astro-pe3pbc5a"> <site-search class=" astro-4npvrjzq" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}" data-mode="default" data-shortcuts="[]"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-4npvrjzq"> <svg aria-hidden="true" class="astro-4npvrjzq astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-4npvrjzq" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-4npvrjzq" style="display: none;"> <kbd class="astro-4npvrjzq">Ctrl</kbd><kbd class="astro-4npvrjzq">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-4npvrjzq"> <div class="dialog-frame sl-flex astro-4npvrjzq">  <button data-close-modal class="sl-flex md:sl-hidden astro-4npvrjzq"> Cancel </button> <div class="search-container astro-4npvrjzq"> <div id="starlight__search" class="astro-4npvrjzq"></div> </div> </div> </dialog> </site-search>  <script>
+  (() => {
+    const openBtn = document.querySelector("button[data-open-modal]");
+    const shortcut = openBtn?.querySelector("kbd");
+    if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+    const platformKey = shortcut.querySelector("kbd");
+    if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+      platformKey.textContent = "⌘";
+      openBtn.setAttribute("aria-keyshortcuts", "Meta+K");
+    }
+    shortcut.style.display = "";
+  })();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.qZjFznbc.js"></script>  </div> <div class="sl-hidden md:sl-flex print:hidden right-group astro-pe3pbc5a"> <div class="sl-flex social-icons astro-pe3pbc5a"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/zen-mode/distributed-systems/redis-complete-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a><script type="module">function h(){const t=window.location.hash;document.querySelectorAll(".starlight-view-modes-switcher-a").forEach(e=>{e instanceof HTMLAnchorElement&&(e.href=e.href.split("#")[0]+t)})}h();window.addEventListener("hashchange",h);</script> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script> <script type="module">const r="starlight-theme",o=e=>e==="auto"||e==="dark"||e==="light"?e:"auto",c=()=>o(typeof localStorage<"u"&&localStorage.getItem(r));function n(e){typeof localStorage<"u"&&localStorage.setItem(r,e==="light"||e==="dark"?e:"")}const l=()=>matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";function t(e){StarlightThemeProvider.updatePickers(e),document.documentElement.dataset.theme=e==="auto"?l():e,n(e)}matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{c()==="auto"&&t("auto")});class s extends HTMLElement{constructor(){super(),t(c()),this.querySelector("select")?.addEventListener("change",a=>{a.currentTarget instanceof HTMLSelectElement&&t(o(a.currentTarget.value))})}}customElements.define("starlight-theme-select",s);</script> <script type="module">class s extends HTMLElement{constructor(){super();const e=this.querySelector("select");e&&(e.addEventListener("change",t=>{t.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=t.currentTarget.value)}),window.addEventListener("pageshow",t=>{if(!t.persisted)return;const n=e.querySelector("option[selected]")?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}}customElements.define("starlight-lang-select",s);</script> <button id="zen-mode-toggle" class="zen-mode-btn astro-hk5zd5ry" title="Zen Mode (Shift+Cmd+Z)" aria-label="Toggle zen mode"> <svg class="zen-mode-icon astro-hk5zd5ry" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <!-- Eye icon (normal state) --> <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" class="astro-hk5zd5ry"></path> <circle cx="12" cy="12" r="3" class="astro-hk5zd5ry"></circle> </svg> </button>  <script type="module">const o="zen-mode";function d(){return typeof window>"u"?!1:localStorage.getItem(o)==="true"}function c(e){typeof window>"u"||(localStorage.setItem(o,String(e)),r(e))}function i(){const e=d();c(!e)}function r(e){if(typeof document>"u")return;const t=document.documentElement;e?t.setAttribute("data-zen-mode","true"):t.removeAttribute("data-zen-mode")}function u(){if(typeof document>"u")return;const e=d();r(e)}u();const n=document.getElementById("zen-mode-toggle");n&&n.addEventListener("click",()=>{i()});document.addEventListener("keydown",e=>{(/Mac|iPhone|iPad|iPod/.test(navigator.platform)?e.metaKey:e.ctrlKey)&&e.shiftKey&&e.key==="Z"&&(e.preventDefault(),i())});</script> </div> </div></header> <nav class="sidebar print:hidden astro-vrdttmbt" aria-label="Main"> <starlight-menu-button class="print:hidden astro-jif73yzw"> <button aria-expanded="false" aria-label="Menu" aria-controls="starlight__sidebar" class="sl-flex md:sl-hidden astro-jif73yzw"> <svg aria-hidden="true" class="open-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg> <svg aria-hidden="true" class="close-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg> </button> </starlight-menu-button> <script type="module">class s extends HTMLElement{constructor(){super(),this.btn=this.querySelector("button"),this.btn.addEventListener("click",()=>this.toggleExpanded());const t=this.closest("nav");t&&t.addEventListener("keyup",e=>this.closeOnEscape(e))}setExpanded(t){this.setAttribute("aria-expanded",String(t)),document.body.toggleAttribute("data-mobile-menu-expanded",t)}toggleExpanded(){this.setExpanded(this.getAttribute("aria-expanded")!=="true")}closeOnEscape(t){t.code==="Escape"&&(this.setExpanded(!1),this.btn.focus())}}customElements.define("starlight-menu-button",s);</script>  <div id="starlight__sidebar" class="sidebar-pane astro-vrdttmbt"> <div class="sidebar-content sl-flex astro-vrdttmbt"> <div class="sidebar-search astro-6p6o3epk"> <site-search class="astro-6p6o3epk astro-v37mnknz" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-v37mnknz"> <svg aria-hidden="true" class="astro-v37mnknz astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-v37mnknz" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-v37mnknz" style="display: none;"> <kbd class="astro-v37mnknz">Ctrl</kbd><kbd class="astro-v37mnknz">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-v37mnknz"> <div class="dialog-frame sl-flex astro-v37mnknz">  <button data-close-modal class="sl-flex md:sl-hidden astro-v37mnknz"> Cancel </button> <div class="search-container astro-v37mnknz"> <div id="starlight__search" class="astro-v37mnknz"></div> </div> </div> </dialog> </site-search>  <script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script> <script type="module" src="/notes/_astro/Search.astro_astro_type_script_index_0_lang.D2LyzZw5.js"></script>  </div> <nav class="section-switcher astro-6p6o3epk" aria-label="Sections"> <a href="/notes/" class="section-tab active astro-6p6o3epk"> Design Patterns </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Distributed Systems </a><a href="/notes/" class="section-tab astro-6p6o3epk"> Notes </a> </nav> <sl-sidebar-state-persist data-hash="0ffdke8" class="astro-kku4brbg"> <script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script>  <ul class="top-level astro-3ii7xxms"> <li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">distributed</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="0"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/circuit-breaker/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Circuit Breaker Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/saga/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Saga Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/outbox-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Transactional Outbox Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/cqrs/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">CQRS (Command Query Responsibility Segregation): A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/event-sourcing/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Event Sourcing: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/bulkhead/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bulkhead Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/retry-with-backoff/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Retry with Exponential Backoff: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/strangler-fig/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strangler Fig Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/sidecar/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Sidecar Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/distributed/repository/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Repository Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">behavioral</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="1"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/observer-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Observer Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/strategy-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Strategy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/command-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Command Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/chain-of-responsibility-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Chain of Responsibility Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/state-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">State Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/template-method-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Template Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/behavioral/iterator-pattern/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Iterator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">structural</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="2"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/decorator/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Decorator Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/adapter/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Adapter Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/proxy/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Proxy Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/facade/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Facade Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/composite/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Composite Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/structural/bridge/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Bridge Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <details class="astro-3ii7xxms"> <summary class="astro-3ii7xxms"> <span class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">creational</span>  </span> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <sl-sidebar-restore data-index="3"></sl-sidebar-restore> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/singleton/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Singleton Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/factory-method/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Factory Method Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/builder/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Builder Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/abstract-factory/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Abstract Factory Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/creational/prototype/" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Prototype Pattern: A Staff Engineer&#39;s Complete Guide</span>  </a> </li> </ul> </details> </li><li class="astro-3ii7xxms"> <a href="/notes/design-patterns/" class="large astro-3ii7xxms"> <span class="astro-3ii7xxms">Design Patterns</span>  </a> </li> </ul>  <script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script> </sl-sidebar-state-persist> <div class="md:sl-hidden astro-6p6o3epk"> <div class="mobile-preferences sl-flex astro-wu23bvmt"> <div class="social-icons astro-wu23bvmt"> <a href="https://github.com/schadokar/schadokar-notes" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a> <a href="/notes/zen-mode/distributed-systems/redis-complete-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label> </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script>   </div> </div> </div> </div> </nav> <div class="main-frame astro-vrdttmbt">  <script type="module">const a=document.getElementById("starlight__sidebar"),n=a?.querySelector("sl-sidebar-state-persist"),o="sl-sidebar-state",i=()=>{let t=[];const e=n?.dataset.hash||"";try{const s=sessionStorage.getItem(o),r=JSON.parse(s||"{}");Array.isArray(r.open)&&r.hash===e&&(t=r.open)}catch{}return{hash:e,open:t,scroll:a?.scrollTop||0}},c=t=>{try{sessionStorage.setItem(o,JSON.stringify(t))}catch{}},d=()=>c(i()),l=(t,e)=>{const s=i();s.open[e]=t,c(s)};n?.addEventListener("click",t=>{if(!(t.target instanceof Element))return;const e=t.target.closest("summary")?.closest("details");if(!e)return;const s=e.querySelector("sl-sidebar-restore"),r=parseInt(s?.dataset.index||"");isNaN(r)||l(!e.open,r)});addEventListener("visibilitychange",()=>{document.visibilityState==="hidden"&&d()});addEventListener("pageHide",d);</script> <div class="lg:sl-flex astro-67yu43on"> <aside class="right-sidebar-container print:hidden astro-67yu43on"> <div class="right-sidebar astro-67yu43on"> <div class="lg:sl-hidden astro-pb3aqygn"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-doynk5tl"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-doynk5tl"><details id="starlight__mobile-toc" class="astro-doynk5tl"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-doynk5tl"><span class="toggle sl-flex astro-doynk5tl">On this page<svg aria-hidden="true" class="caret astro-doynk5tl astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></span><span class="display-current astro-doynk5tl"></span></summary><div class="dropdown astro-doynk5tl"><ul class="isMobile astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-step-by-step" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts (Step-by-Step)</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#21-how-redis-works--internal-architecture" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.1 How Redis Works — Internal Architecture</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#22-why-redis-is-fast" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.2 Why Redis Is Fast</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#23-ram-vs-disk--redis-persistence-deep-dive" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.3 RAM vs Disk — Redis Persistence Deep Dive</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#24-why-redis-is-single-threaded" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.4 Why Redis Is Single-Threaded</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#25-how-redis-is-fast-despite-being-single-threaded" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.5 How Redis Is Fast Despite Being Single-Threaded</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#26-how-redis-cluster-works" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.6 How Redis Cluster Works</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#27-redis-write-strategies" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.7 Redis Write Strategies</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#caching-the-bread-and-butter" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Caching (The Bread and Butter)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#rate-limiting" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Rate Limiting</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#session-store" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Session Store</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#distributed-locks" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Distributed Locks</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#leaderboards" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Leaderboards</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#pubsub-and-event-streaming" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Pub/Sub and Event Streaming</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-happens-if-redis-crashes" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What Happens If Redis Crashes?</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#best-practices-to-keep-redis-fast" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Best Practices to Keep Redis Fast</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#bad-practices-things-to-avoid" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Bad Practices (Things to Avoid)</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-redis-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use Redis When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-redis-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use Redis When:</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus-comparisons" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus (Comparisons)</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis-vs-dragonfly" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis vs Dragonfly</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis-vs-postgresql" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis vs PostgreSQL</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. Interview Questions</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-design-a-rate-limiter-using-redis-how-would-you-handle-a-distributed-system-with-multiple-application-servers" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: “Design a rate limiter using Redis. How would you handle a distributed system with multiple application servers?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-youre-seeing-p99-latency-spikes-in-redis-every-5-minutes-how-do-you-diagnose-and-fix-this" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: “You’re seeing p99 latency spikes in Redis every 5 minutes. How do you diagnose and fix this?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-how-would-you-design-redis-cluster-for-a-write-heavy-workload-with-500k-writessec" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: “How would you design Redis Cluster for a write-heavy workload with 500K writes/sec?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-your-application-uses-redis-as-a-cache-in-front-of-postgresql-describe-the-failure-modes-and-how-youd-handle-a-cache-stampede" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: “Your application uses Redis as a cache in front of PostgreSQL. Describe the failure modes and how you’d handle a cache stampede.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-explain-the-trade-offs-between-redis-persistence-options-when-would-you-choose-each" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: “Explain the trade-offs between Redis persistence options. When would you choose each?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q6-you-need-a-distributed-lock-across-5-microservices-would-you-use-redis-how-would-you-implement-it" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q6: “You need a distributed lock across 5 microservices. Would you use Redis? How would you implement it?”</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Staff-Level Preparation Tips</span> </a> <ul class="isMobile astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-build" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Build</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#how-to-demonstrate-staff-level-thinking-in-interviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">How to Demonstrate Staff-Level Thinking in Interviews</span> </a>  </li> </ul> </li> </ul></div></details></nav></mobile-starlight-toc><script type="module" src="/notes/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.hwBsy0Mo.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-pb3aqygn"><div class="sl-container astro-pb3aqygn"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-gnoq344e" style="--depth: 0;"> <li class="astro-gnoq344e" style="--depth: 0;"> <a href="#_top" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#2-core-concepts-step-by-step" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">2. Core Concepts (Step-by-Step)</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#21-how-redis-works--internal-architecture" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.1 How Redis Works — Internal Architecture</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#22-why-redis-is-fast" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.2 Why Redis Is Fast</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#23-ram-vs-disk--redis-persistence-deep-dive" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.3 RAM vs Disk — Redis Persistence Deep Dive</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#24-why-redis-is-single-threaded" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.4 Why Redis Is Single-Threaded</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#25-how-redis-is-fast-despite-being-single-threaded" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.5 How Redis Is Fast Despite Being Single-Threaded</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#26-how-redis-cluster-works" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.6 How Redis Cluster Works</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#27-redis-write-strategies" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">2.7 Redis Write Strategies</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#3-use-cases" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">3. Use Cases</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#caching-the-bread-and-butter" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Caching (The Bread and Butter)</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#rate-limiting" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Rate Limiting</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#session-store" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Session Store</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#distributed-locks" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Distributed Locks</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#leaderboards" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Leaderboards</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#pubsub-and-event-streaming" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Pub/Sub and Event Streaming</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#4-gotchas" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">4. Gotchas</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-happens-if-redis-crashes" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What Happens If Redis Crashes?</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#best-practices-to-keep-redis-fast" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Best Practices to Keep Redis Fast</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#bad-practices-things-to-avoid" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Bad Practices (Things to Avoid)</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#5-where-to-use-and-where-not-to-use" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">5. Where to Use (and Where NOT to Use)</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#use-redis-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Use Redis When:</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#do-not-use-redis-when" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Do NOT Use Redis When:</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#6-versus-comparisons" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">6. Versus (Comparisons)</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis-vs-dragonfly" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis vs Dragonfly</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#redis-vs-postgresql" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Redis vs PostgreSQL</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#7-references" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">7. References</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#8-interview-questions" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">8. Interview Questions</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q1-design-a-rate-limiter-using-redis-how-would-you-handle-a-distributed-system-with-multiple-application-servers" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q1: “Design a rate limiter using Redis. How would you handle a distributed system with multiple application servers?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q2-youre-seeing-p99-latency-spikes-in-redis-every-5-minutes-how-do-you-diagnose-and-fix-this" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q2: “You’re seeing p99 latency spikes in Redis every 5 minutes. How do you diagnose and fix this?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q3-how-would-you-design-redis-cluster-for-a-write-heavy-workload-with-500k-writessec" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q3: “How would you design Redis Cluster for a write-heavy workload with 500K writes/sec?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q4-your-application-uses-redis-as-a-cache-in-front-of-postgresql-describe-the-failure-modes-and-how-youd-handle-a-cache-stampede" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q4: “Your application uses Redis as a cache in front of PostgreSQL. Describe the failure modes and how you’d handle a cache stampede.”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q5-explain-the-trade-offs-between-redis-persistence-options-when-would-you-choose-each" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q5: “Explain the trade-offs between Redis persistence options. When would you choose each?”</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#q6-you-need-a-distributed-lock-across-5-microservices-would-you-use-redis-how-would-you-implement-it" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">Q6: “You need a distributed lock across 5 microservices. Would you use Redis? How would you implement it?”</span> </a>  </li> </ul> </li><li class="astro-gnoq344e" style="--depth: 0;"> <a href="#9-staff-level-preparation-tips" class="astro-gnoq344e" style="--depth: 0;"> <span class="astro-gnoq344e" style="--depth: 0;">9. Staff-Level Preparation Tips</span> </a> <ul class="astro-gnoq344e" style="--depth: 1;"> <li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-study-deeper" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Study Deeper</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#what-to-build" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">What to Build</span> </a>  </li><li class="astro-gnoq344e" style="--depth: 1;"> <a href="#how-to-demonstrate-staff-level-thinking-in-interviews" class="astro-gnoq344e" style="--depth: 1;"> <span class="astro-gnoq344e" style="--depth: 1;">How to Demonstrate Staff-Level Thinking in Interviews</span> </a>  </li> </ul> </li> </ul></nav></starlight-toc><script type="module" src="/notes/_astro/TableOfContents.astro_astro_type_script_index_0_lang.FuRcXuRY.js"></script> <div class="starlight-view-modes-table-of-contents-container astro-ycta3xxa"><h2 class="astro-ycta3xxa">View Modes</h2><ul class="astro-ycta3xxa"><li class="starlight-view-modes-table-of-contents-item astro-ycta3xxa"><a href="/notes/zen-mode/distributed-systems/redis-complete-guide" class="starlight-view-modes-switcher-a astro-ycta3xxa">Switch to Zen Mode</a><script>
+  (() => {
+    const shortcuts = document.querySelectorAll("kbd:has(kbd)");
+    for (const shortcut of shortcuts) {
+      if (!(shortcut instanceof HTMLElement)) return;
+      const platformKeys = shortcut.querySelectorAll("kbd");
+      for (const platformKey of platformKeys) {
+        if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+          platformKey.textContent = platformKey.textContent
+            .replace("Ctrl", "⌘")
+            .replace("Shift", "⇧")
+            .replace("Alt", "⌥");
+        }
+      }
+      shortcut.style.display = "";
+    }
+  })();
+</script></li></ul></div></div></div> </div> </aside> <div class="main-pane astro-67yu43on">  <main data-pagefind-body class="astro-bguv2lll" lang="en" dir="ltr">    <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <h1 id="_top" class="astro-j6tvhyss">Redis: The Complete Guide — From Internals to Staff-Level Mastery</h1> <div class="starlight-view-modes-page-title-switcher astro-uvozaax5"> <a href="/notes/zen-mode/distributed-systems/redis-complete-guide" class="sl-flex starlight-view-modes-social-link-a starlight-view-modes-switcher-a astro-ycta3xxa"><span class="sr-only astro-ycta3xxa">Switch to Zen Mode</span><svg aria-hidden="true" class="astro-ycta3xxa astro-uopvwlpv" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"> <path d="M22 13a10 10 0 1 0-20 0c0 4.32 3.09 10 10 10 6.93 0 10-5.7 10-10zm-10 8a8.01 8.01 0 0 1 0-16 8.01 8.01 0 0 1 0 16zm3-4H9v-1.57l3.82-4.83H9V9h6v1.58l-3.79 4.84H15V17zM.8 8.71a4.99 4.99 0 0 1 6.91-6.9 12.04 12.04 0 0 0-6.9 6.9zM19 1a5 5 0 0 0-2.72.8 12.06 12.06 0 0 1 6.92 6.91A4.99 4.99 0 0 0 19 1z" /> </svg></a> </div>  </div> </div> <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <div class="sl-markdown-content"> <p>Redis stands behind almost every high-traffic system you’ve ever used. Twitter uses it for timelines. GitHub uses it for job queues. Stripe uses it for rate limiting. Netflix uses it for session storage across hundreds of millions of users.</p>
+<p>Yet most engineers treat Redis as a “fast key-value store” and move on. That’s fine for a senior engineer. It’s not enough for a staff engineer. At staff level, you need to understand <strong>why</strong> Redis is fast, <strong>how</strong> it persists data, <strong>what</strong> happens when it crashes at 3 AM, and <strong>when</strong> you should reach for something else entirely.</p>
+<p>This article takes you from “I use Redis for caching” to “I can design and operate Redis at scale, explain every trade-off in a design review, and ace Redis questions in a staff-level interview.”</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="2-core-concepts-step-by-step">2. Core Concepts (Step-by-Step)</h2><a class="sl-anchor-link" href="#2-core-concepts-step-by-step"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2. Core Concepts (Step-by-Step)”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="21-how-redis-works--internal-architecture">2.1 How Redis Works — Internal Architecture</h3><a class="sl-anchor-link" href="#21-how-redis-works--internal-architecture"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.1 How Redis Works — Internal Architecture”</span></a></div>
+<p>Let’s start with a mental model. Think of Redis as a <strong>single-threaded waiter in a very fast restaurant</strong>. There’s only one waiter (the main thread), but the waiter is extraordinarily efficient — they take orders, serve food, and clear tables faster than a team of ten average waiters. The secret? Everything is within arm’s reach (in memory), and the waiter never stands around waiting for the kitchen (no blocking I/O).</p>
+<p>Here’s what actually happens inside Redis:</p>
+<pre class="mermaid">graph TB
+    subgraph "Client Connections"
+        C1[Client 1]
+        C2[Client 2]
+        C3[Client 3]
+        CN[Client N]
+    end
+
+    subgraph "Redis Server Process"
+        EL[Event Loop&#x3C;br/>epoll/kqueue]
+        CP[Command Parser]
+        CE[Command Executor]
+        
+        subgraph "In-Memory Data Structures"
+            HT[Hash Tables&#x3C;br/>Main Key Space]
+            SL[Skip Lists&#x3C;br/>Sorted Sets]
+            ZL[Ziplists&#x3C;br/>Small Collections]
+            LL[Linked Lists]
+            SDS[SDS Strings&#x3C;br/>Simple Dynamic Strings]
+            IS[IntSets&#x3C;br/>Small Integer Sets]
+        end
+
+        subgraph "Background Threads"
+            BIO1[BIO: Close File]
+            BIO2[BIO: AOF fsync]
+            BIO3[BIO: Lazy Free]
+        end
+    end
+
+    subgraph "Persistence"
+        RDB[RDB Snapshots&#x3C;br/>.rdb file]
+        AOF[Append-Only File&#x3C;br/>.aof file]
+    end
+
+    C1 &#x26; C2 &#x26; C3 &#x26; CN -->|TCP/RESP Protocol| EL
+    EL --> CP --> CE
+    CE --> HT &#x26; SL &#x26; ZL
+    CE -.->|fork| RDB
+    CE -.->|write buffer| AOF
+    BIO2 -.->|fsync| AOF</pre>
+<p><em>Redis architecture: a single event loop handles all client connections, executes commands against in-memory data structures, and offloads disk I/O to background threads.</em></p>
+<p><strong>Key components:</strong></p>
+<ol>
+<li>
+<p><strong>Event Loop</strong> — Redis uses <code dir="auto">epoll</code> (Linux) or <code dir="auto">kqueue</code> (macOS/BSD) for I/O multiplexing. One thread monitors thousands of sockets simultaneously. When data arrives on any socket, the event loop processes it immediately without blocking.</p>
+</li>
+<li>
+<p><strong>RESP Protocol</strong> — Redis uses a simple text-based protocol called RESP (REdis Serialization Protocol). It’s designed for speed: easy to parse, minimal overhead.</p>
+</li>
+<li>
+<p><strong>Key Space (Hash Table)</strong> — All keys live in a global hash table. Lookups are O(1). Redis uses <strong>incremental rehashing</strong> — when the table needs to grow, it doesn’t stop the world. It rehashes a few buckets on each operation, spreading the cost.</p>
+</li>
+<li>
+<p><strong>Data Structures</strong> — Redis doesn’t just store strings. It has purpose-built data structures optimized for specific access patterns:</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Structure</th><th>Redis Type</th><th>Use Case</th><th>Time Complexity</th></tr></thead><tbody><tr><td>Hash Table</td><td>Hash</td><td>Object fields, user profiles</td><td>O(1) get/set</td></tr><tr><td>Skip List</td><td>Sorted Set</td><td>Leaderboards, priority queues</td><td>O(log N) insert/lookup</td></tr><tr><td>Ziplist</td><td>Small List/Hash/Set</td><td>Memory-efficient small collections</td><td>O(N) but N is tiny</td></tr><tr><td>SDS (Simple Dynamic String)</td><td>String</td><td>Counters, cached values, binary data</td><td>O(1) length, O(N) append</td></tr><tr><td>IntSet</td><td>Small Sets (integers only)</td><td>Tag IDs, small numeric sets</td><td>O(log N) binary search</td></tr><tr><td>Quicklist</td><td>List</td><td>Job queues, activity feeds</td><td>O(1) push/pop at ends</td></tr></tbody></table>
+<ol start="5">
+<li><strong>Background Threads</strong> — Despite being “single-threaded” for command processing, Redis has background threads (BIO threads) for:
+<ul>
+<li>Lazy object freeing (<code dir="auto">UNLINK</code> instead of <code dir="auto">DEL</code>)</li>
+<li>AOF <code dir="auto">fsync</code> to disk</li>
+<li>Closing file descriptors</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Redis’s global hash table uses two tables during rehashing — <code dir="auto">ht[0]</code> (old) and <code dir="auto">ht[1]</code> (new). Every operation touches both tables until migration completes. This is why <code dir="auto">DBSIZE</code> is always O(1) — it just sums the entry counts. Understanding incremental rehashing is essential for explaining Redis performance under load.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="22-why-redis-is-fast">2.2 Why Redis Is Fast</h3><a class="sl-anchor-link" href="#22-why-redis-is-fast"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.2 Why Redis Is Fast”</span></a></div>
+<p>Redis consistently delivers <strong>sub-millisecond latency</strong> for most operations. Here’s exactly why:</p>
+<p><strong>1. Everything is in-memory</strong></p>
+<p>Disk access takes ~10ms (HDD) or ~0.1ms (SSD). RAM access takes ~100ns. That’s a 1,000x to 100,000x difference. Redis keeps the entire dataset in RAM, so every read and write is a memory operation.</p>
+<p><strong>2. I/O multiplexing (epoll/kqueue)</strong></p>
+<p>Instead of spawning a thread per connection (like traditional databases), Redis uses a single thread with <code dir="auto">epoll</code> to monitor thousands of connections simultaneously. When any socket has data, Redis reads it, processes the command, and writes the response — all without context switching.</p>
+<p><strong>3. No context switching</strong></p>
+<p>A thread context switch costs 1-10 microseconds. With thousands of connections and a thread-per-connection model, context switching becomes a significant cost. Redis avoids this entirely.</p>
+<p><strong>4. Efficient data structures</strong></p>
+<p>Redis doesn’t use generic data structures. Every structure is hand-tuned:</p>
+<ul>
+<li><strong>Ziplist</strong> packs small collections into a contiguous memory block (cache-line friendly)</li>
+<li><strong>Skip lists</strong> give O(log N) sorted access without the complexity of balanced trees</li>
+<li><strong>SDS strings</strong> pre-allocate space to reduce reallocations</li>
+</ul>
+<p><strong>5. Single-threaded command execution = no locks</strong></p>
+<p>No locks means no lock contention, no deadlocks, no overhead from lock acquisition. Every command runs to completion without interruption.</p>
+<p><strong>6. RESP protocol is simple to parse</strong></p>
+<p>The protocol is essentially <code dir="auto">*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n</code>. A simple state machine can parse it in a single pass.</p>
+<p><strong>Putting it in perspective:</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Operation</th><th>Latency</th><th>Operations/sec (single node)</th></tr></thead><tbody><tr><td>GET/SET (simple key)</td><td>~0.1ms</td><td>100,000–200,000</td></tr><tr><td>ZADD (sorted set)</td><td>~0.2ms</td><td>80,000–150,000</td></tr><tr><td>LPUSH/LPOP</td><td>~0.1ms</td><td>100,000–200,000</td></tr><tr><td>Pipeline (100 commands)</td><td>~1ms total</td><td>1,000,000+ effective</td></tr></tbody></table>
+<div class="sl-heading-wrapper level-h3"><h3 id="23-ram-vs-disk--redis-persistence-deep-dive">2.3 RAM vs Disk — Redis Persistence Deep Dive</h3><a class="sl-anchor-link" href="#23-ram-vs-disk--redis-persistence-deep-dive"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.3 RAM vs Disk — Redis Persistence Deep Dive”</span></a></div>
+<p>One of the most misunderstood aspects of Redis: <strong>“Redis is in-memory only.”</strong> This is wrong. Redis stores data in RAM for speed but offers multiple persistence options.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="rdb-redis-database-snapshots">RDB (Redis Database Snapshots)</h4><a class="sl-anchor-link" href="#rdb-redis-database-snapshots"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “RDB (Redis Database Snapshots)”</span></a></div>
+<p>RDB creates point-in-time snapshots of your dataset. Think of it as <code dir="auto">pg_dump</code> but for Redis.</p>
+<p><strong>How it works:</strong></p>
+<ol>
+<li>Redis calls <code dir="auto">fork()</code> to create a child process</li>
+<li>The child process writes the entire dataset to a temporary <code dir="auto">.rdb</code> file</li>
+<li>Once complete, the temporary file replaces the old <code dir="auto">.rdb</code> file</li>
+<li>The parent process continues serving requests (using copy-on-write from <code dir="auto">fork()</code>)</li>
+</ol>
+<p><strong>The <code dir="auto">fork()</code> trick:</strong> After <code dir="auto">fork()</code>, the child shares the same memory pages as the parent. Only when the parent modifies a page does the OS create a copy (copy-on-write). This means the snapshot is nearly instant — even for large datasets — as long as write activity is low during the snapshot.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="aof-append-only-file">AOF (Append-Only File)</h4><a class="sl-anchor-link" href="#aof-append-only-file"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “AOF (Append-Only File)”</span></a></div>
+<p>AOF logs every write command Redis executes. Think of it as a write-ahead log (WAL) — similar to PostgreSQL’s WAL.</p>
+<p><strong>How it works:</strong></p>
+<ol>
+<li>Every write command is appended to a buffer</li>
+<li>The buffer is flushed to the AOF file based on the <code dir="auto">appendfsync</code> policy:
+<ul>
+<li><code dir="auto">always</code> — fsync after every command (safest, slowest)</li>
+<li><code dir="auto">everysec</code> — fsync once per second (good balance — <strong>recommended</strong>)</li>
+<li><code dir="auto">no</code> — let the OS decide (fastest, riskiest)</li>
+</ul>
+</li>
+</ol>
+<p><strong>AOF Rewrite:</strong> Over time, the AOF file grows. Redis periodically rewrites it to the minimal set of commands needed to reconstruct the dataset. This happens in a background <code dir="auto">fork()</code> process, similar to RDB.</p>
+<div class="sl-heading-wrapper level-h4"><h4 id="hybrid-persistence-redis-40">Hybrid Persistence (Redis 4.0+)</h4><a class="sl-anchor-link" href="#hybrid-persistence-redis-40"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Hybrid Persistence (Redis 4.0+)”</span></a></div>
+<p>The best of both worlds. When AOF rewrite happens, Redis writes the RDB snapshot at the beginning of the AOF file, then appends only the commands that arrived during the rewrite. On restart, Redis loads the RDB portion (fast) then replays the AOF tail (minimal commands).</p>
+<pre class="mermaid">graph LR
+    subgraph "Persistence Strategies"
+        direction TB
+        
+        subgraph "RDB Snapshots"
+            R1[fork parent process] --> R2[Child writes .rdb]
+            R2 --> R3[Point-in-time snapshot]
+            R3 --> R4["⚠️ Data loss: up to last&#x3C;br/>snapshot interval"]
+        end
+
+        subgraph "AOF - Append-Only File"
+            A1[Every write command] --> A2[Append to buffer]
+            A2 --> A3[fsync based on policy]
+            A3 --> A4["✅ Minimal data loss&#x3C;br/>1 sec with everysec"]
+        end
+
+        subgraph "Hybrid - RDB + AOF tail"
+            H1[AOF rewrite triggers] --> H2[Write RDB header]
+            H2 --> H3[Append new commands as AOF]
+            H3 --> H4["✅ Fast restart +&#x3C;br/>minimal data loss"]
+        end
+    end</pre>
+<p><em>Persistence strategies compared: RDB is simplest, AOF is most durable, Hybrid gives you fast restarts with minimal data loss.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>RDB</th><th>AOF (everysec)</th><th>Hybrid</th></tr></thead><tbody><tr><td>Data loss risk</td><td>Up to last snapshot interval</td><td>~1 second</td><td>~1 second</td></tr><tr><td>Restart speed</td><td>Fast (binary load)</td><td>Slow (replay commands)</td><td>Fast (RDB header + short replay)</td></tr><tr><td>Disk space</td><td>Compact</td><td>Larger (commands log)</td><td>Moderate</td></tr><tr><td>CPU impact</td><td>Spiky (during fork)</td><td>Steady</td><td>Moderate</td></tr><tr><td><strong>My recommendation</strong></td><td>Dev/testing</td><td>Production without hybrid</td><td><strong>Production default</strong></td></tr></tbody></table>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The <code dir="auto">fork()</code> used by RDB and AOF rewrite is not free. For a 25 GB dataset on Linux, <code dir="auto">fork()</code> can take 10-20ms and temporarily double memory usage (worst case, if every page gets modified). At 100 GB+, this becomes a serious concern. You need to monitor <code dir="auto">latest_fork_usec</code> in <code dir="auto">INFO</code> stats and ensure your machine has enough free memory to handle copy-on-write peaks. This is a common production incident: Redis OOM-killed during BGSAVE because no one accounted for CoW overhead.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="24-why-redis-is-single-threaded">2.4 Why Redis Is Single-Threaded</h3><a class="sl-anchor-link" href="#24-why-redis-is-single-threaded"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.4 Why Redis Is Single-Threaded”</span></a></div>
+<p>This confuses many engineers: “If multi-threading is faster, why doesn’t Redis use it?”</p>
+<p>The answer is simple — <strong>Redis’s bottleneck is not CPU, it’s network I/O and memory bandwidth.</strong></p>
+<p>For most Redis operations (GET, SET, INCR), the command itself takes <strong>nanoseconds</strong>. The time is spent reading from the socket and writing the response back. Adding multiple threads would add:</p>
+<ul>
+<li><strong>Lock overhead</strong> — Every data structure access would need locking</li>
+<li><strong>Context switch cost</strong> — OS scheduling overhead</li>
+<li><strong>Cache line bouncing</strong> — Multiple threads accessing the same data causes CPU cache invalidation</li>
+<li><strong>Complexity</strong> — More threads = more bugs, harder debugging</li>
+</ul>
+<p>In benchmarks, a single Redis thread saturates a ~10 Gbps network link before it saturates a CPU core. The bottleneck is the network, not the processing.</p>
+<p><strong>But wait — Redis 6.0+ has I/O threads!</strong></p>
+<p>Redis 6.0 introduced <strong>threaded I/O</strong> — but only for reading client requests and writing responses. The actual command execution is still single-threaded. This helps when the network is the bottleneck (many clients, large payloads).</p>
+<pre class="mermaid">graph LR
+    subgraph "Redis 6.0+ Threading Model"
+        subgraph "I/O Threads - configurable"
+            IO1[I/O Thread 1&#x3C;br/>Read/Write]
+            IO2[I/O Thread 2&#x3C;br/>Read/Write]
+            IO3[I/O Thread 3&#x3C;br/>Read/Write]
+        end
+
+        subgraph "Main Thread"
+            MT[Command Execution&#x3C;br/>Single-Threaded&#x3C;br/>No locks needed]
+        end
+
+        IO1 &#x26; IO2 &#x26; IO3 -->|Parsed Commands| MT
+        MT -->|Responses| IO1 &#x26; IO2 &#x26; IO3
+    end</pre>
+<p><em>Redis 6.0+ uses multiple threads for network I/O but keeps command execution single-threaded. This preserves simplicity while improving network throughput.</em></p>
+<div class="sl-heading-wrapper level-h3"><h3 id="25-how-redis-is-fast-despite-being-single-threaded">2.5 How Redis Is Fast Despite Being Single-Threaded</h3><a class="sl-anchor-link" href="#25-how-redis-is-fast-despite-being-single-threaded"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.5 How Redis Is Fast Despite Being Single-Threaded”</span></a></div>
+<p>Let me connect the dots with a concrete analogy.</p>
+<p>Imagine a <strong>toll booth on a highway</strong>. A multi-threaded system opens 8 toll booths. Each booth serves one car at a time, but they serve 8 cars in parallel. The overhead? 8 employees, coordinating lane merges, making sure no two booths charge the same car.</p>
+<p>Redis is <strong>one toll booth with no barrier</strong>. Cars fly through at 200 mph because there’s nothing blocking them. No barrier arm to raise, no cash handling, no ticket printing. Just a sensor that reads the license plate at wire speed.</p>
+<p>The reason this works:</p>
+<ol>
+<li>
+<p><strong>Operations are microsecond-scale</strong> — A <code dir="auto">GET</code> command touches one hash table bucket. That’s a pointer dereference and a memory read. Nanoseconds.</p>
+</li>
+<li>
+<p><strong>Event loop processes commands sequentially but without waiting</strong> — While one client’s response is in-flight over the network, Redis is already processing the next command from a different client.</p>
+</li>
+<li>
+<p><strong>Pipelining</strong> — Clients can send multiple commands without waiting for responses. Redis processes them in sequence and sends all responses at once. This amortizes the network round-trip cost.</p>
+</li>
+<li>
+<p><strong>The kernel handles connection management</strong> — <code dir="auto">epoll</code> tells Redis exactly which sockets have data. Redis doesn’t waste time checking empty sockets.</p>
+</li>
+</ol>
+<p>Here’s a Go example showing the difference between naive individual commands and pipelining:</p>
+<div class="expressive-code"><link rel="stylesheet" href="/notes/_astro/ec.xvy5v.css"><script type="module" src="/notes/_astro/ec.0vx5m.js"></script><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">package</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">import</span><span style="--0:#24292E;--1:#E1E4E8"> (</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">fmt</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">time</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/redis/go-redis/v9</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span><span style="--0:#24292E;--1:#E1E4E8">() {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">ctx </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> context.</span><span style="--0:#6F42C1;--1:#B392F0">Background</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">rdb </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> redis.</span><span style="--0:#6F42C1;--1:#B392F0">NewClient</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Options</span><span style="--0:#24292E;--1:#E1E4E8">{</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">Addr: </span><span style="--0:#032F62;--1:#9ECBFF">"localhost:6379"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">})</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">defer</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Close</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// --- Naive: 1000 individual SET commands ---</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">start </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> time.</span><span style="--0:#6F42C1;--1:#B392F0">Now</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">for</span><span style="--0:#24292E;--1:#E1E4E8"> i </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">0</span><span style="--0:#24292E;--1:#E1E4E8">; i </span><span style="--0:#BF3441;--1:#F97583">&#x3C;</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">1000</span><span style="--0:#24292E;--1:#E1E4E8">; i</span><span style="--0:#BF3441;--1:#F97583">++</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Set</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Sprintf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"key:</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, i), fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Sprintf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"value:</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, i), </span><span style="--0:#005CC5;--1:#79B8FF">0</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Printf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"Individual SETs: </span><span style="--0:#005CC5;--1:#79B8FF">%v\n</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, time.</span><span style="--0:#6F42C1;--1:#B392F0">Since</span><span style="--0:#24292E;--1:#E1E4E8">(start))</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Typical: ~200ms (1000 round trips)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// --- Pipelined: 1000 SET commands in one batch ---</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">start </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> time.</span><span style="--0:#6F42C1;--1:#B392F0">Now</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Pipeline</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">for</span><span style="--0:#24292E;--1:#E1E4E8"> i </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">0</span><span style="--0:#24292E;--1:#E1E4E8">; i </span><span style="--0:#BF3441;--1:#F97583">&#x3C;</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">1000</span><span style="--0:#24292E;--1:#E1E4E8">; i</span><span style="--0:#BF3441;--1:#F97583">++</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Set</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Sprintf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"pkey:</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, i), fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Sprintf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"value:</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, i), </span><span style="--0:#005CC5;--1:#79B8FF">0</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(ctx)</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#6F42C1;--1:#B392F0">panic</span><span style="--0:#24292E;--1:#E1E4E8">(err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Printf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"Pipelined SETs:  </span><span style="--0:#005CC5;--1:#79B8FF">%v\n</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, time.</span><span style="--0:#6F42C1;--1:#B392F0">Since</span><span style="--0:#24292E;--1:#E1E4E8">(start))</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Typical: ~5ms (1 round trip for 1000 commands)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="package mainimport (    &#x22;context&#x22;    &#x22;fmt&#x22;    &#x22;time&#x22;    &#x22;github.com/redis/go-redis/v9&#x22;)func main() {    ctx := context.Background()    rdb := redis.NewClient(&#x26;redis.Options{        Addr: &#x22;localhost:6379&#x22;,    })    defer rdb.Close()    // --- Naive: 1000 individual SET commands ---    start := time.Now()    for i := 0; i < 1000; i++ {        rdb.Set(ctx, fmt.Sprintf(&#x22;key:%d&#x22;, i), fmt.Sprintf(&#x22;value:%d&#x22;, i), 0)    }    fmt.Printf(&#x22;Individual SETs: %v\n&#x22;, time.Since(start))    // Typical: ~200ms (1000 round trips)    // --- Pipelined: 1000 SET commands in one batch ---    start = time.Now()    pipe := rdb.Pipeline()    for i := 0; i < 1000; i++ {        pipe.Set(ctx, fmt.Sprintf(&#x22;pkey:%d&#x22;, i), fmt.Sprintf(&#x22;value:%d&#x22;, i), 0)    }    _, err := pipe.Exec(ctx)    if err != nil {        panic(err)    }    fmt.Printf(&#x22;Pipelined SETs:  %v\n&#x22;, time.Since(start))    // Typical: ~5ms (1 round trip for 1000 commands)}"><div></div></button></div></figure></div>
+<p>The pipeline version isn’t just faster — it’s fundamentally different. Instead of 1000 network round trips, you make <strong>one</strong>. This is the key to getting millions of operations per second from a single Redis instance.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> When someone asks “Redis is single-threaded, how does it handle 100K ops/sec?” — the answer isn’t just “memory is fast.” It’s the combination of: (1) non-blocking I/O via epoll, (2) no lock overhead, (3) no context switching, (4) commands that complete in microseconds, and (5) pipelining that amortizes network latency. If you can explain all five factors clearly in an interview, you’re demonstrating systems-level understanding.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="26-how-redis-cluster-works">2.6 How Redis Cluster Works</h3><a class="sl-anchor-link" href="#26-how-redis-cluster-works"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.6 How Redis Cluster Works”</span></a></div>
+<p>When a single Redis node isn’t enough (either you’ve exceeded the memory of one machine or you need more throughput), you need Redis Cluster.</p>
+<p><strong>Hash Slots — The Sharding Mechanism</strong></p>
+<p>Redis Cluster divides the key space into <strong>16,384 hash slots</strong>. Every key is mapped to a slot using <code dir="auto">CRC16(key) % 16384</code>. Slots are distributed across nodes.</p>
+<p>For example, with 3 master nodes:</p>
+<ul>
+<li>Node A handles slots 0–5460</li>
+<li>Node B handles slots 5461–10922</li>
+<li>Node C handles slots 10923–16383</li>
+</ul>
+<pre class="mermaid">graph TB
+    subgraph "Redis Cluster - 3 Masters + 3 Replicas"
+        subgraph "Master A&#x3C;br/>Slots 0-5460"
+            MA[Master A]
+            RA[Replica A']
+        end
+        
+        subgraph "Master B&#x3C;br/>Slots 5461-10922"
+            MB[Master B]
+            RB[Replica B']
+        end
+        
+        subgraph "Master C&#x3C;br/>Slots 10923-16383"
+            MC[Master C]
+            RC[Replica C']
+        end
+
+        MA -.->|Async Replication| RA
+        MB -.->|Async Replication| RB
+        MC -.->|Async Replication| RC
+        
+        MA &#x3C;-->|Gossip Protocol&#x3C;br/>Cluster Bus| MB
+        MB &#x3C;-->|Gossip Protocol&#x3C;br/>Cluster Bus| MC
+        MC &#x3C;-->|Gossip Protocol&#x3C;br/>Cluster Bus| MA
+    end
+
+    Client[Client] -->|"SET user:123 → CRC16 user:123 mod 16384 = slot 7842&#x3C;br/>→ Routed to Master B"| MB</pre>
+<p><em>Redis Cluster uses 16,384 hash slots distributed across masters. Each master has a replica for failover. Nodes communicate via the Gossip protocol.</em></p>
+<p><strong>Key Cluster Concepts:</strong></p>
+<ol>
+<li>
+<p><strong>MOVED/ASK redirections</strong> — If a client sends a command to the wrong node, that node responds with <code dir="auto">MOVED &#x3C;slot> &#x3C;correct-node></code>. Smart clients (like <code dir="auto">go-redis</code>) cache the slot mapping and route correctly after the first redirect.</p>
+</li>
+<li>
+<p><strong>Gossip Protocol</strong> — Every node periodically exchanges state information with other nodes. This is how the cluster detects failures and propagates configuration changes. Each node sends heartbeats every second and expects responses within <code dir="auto">cluster-node-timeout</code> (default: 15 seconds).</p>
+</li>
+<li>
+<p><strong>Replication</strong> — Each master has one or more replicas. Replication is <strong>asynchronous</strong> — writes are acknowledged before replication. This means writes can be lost during failover.</p>
+</li>
+<li>
+<p><strong>Failover</strong> — When a master is unreachable for <code dir="auto">cluster-node-timeout</code> milliseconds, its replicas initiate an election. The replica with the most up-to-date data wins and becomes the new master.</p>
+</li>
+<li>
+<p><strong>Hash Tags</strong> — If you need multiple keys on the same node (for multi-key operations), use hash tags: <code dir="auto">{user:123}.profile</code> and <code dir="auto">{user:123}.sessions</code> both hash on <code dir="auto">user:123</code>, so they land on the same slot.</p>
+</li>
+</ol>
+<p>Here’s connecting to a Redis Cluster in Go:</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">package</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">import</span><span style="--0:#24292E;--1:#E1E4E8"> (</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">fmt</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#6F42C1;--1:#B392F0">github.com/redis/go-redis/v9</span><span style="--0:#032F62;--1:#9ECBFF">"</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">main</span><span style="--0:#24292E;--1:#E1E4E8">() {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">ctx </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> context.</span><span style="--0:#6F42C1;--1:#B392F0">Background</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">rdb </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> redis.</span><span style="--0:#6F42C1;--1:#B392F0">NewClusterClient</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">ClusterOptions</span><span style="--0:#24292E;--1:#E1E4E8">{</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">Addrs: []</span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">{</span></div></div><div class="ec-line"><div class="code"><span class="indent">            </span><span style="--0:#032F62;--1:#9ECBFF">"redis-node-1:6379"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent">            </span><span style="--0:#032F62;--1:#9ECBFF">"redis-node-2:6379"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent">            </span><span style="--0:#032F62;--1:#9ECBFF">"redis-node-3:6379"</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">},</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#616972;--1:#99A0A6">// Route read commands to replicas for read scaling</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">RouteByLatency: </span><span style="--0:#005CC5;--1:#79B8FF">true</span><span style="--0:#24292E;--1:#E1E4E8">,</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#616972;--1:#99A0A6">// Automatically follow MOVED/ASK redirections</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#616972;--1:#99A0A6">// (go-redis does this by default)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">})</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">defer</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Close</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Hash tags ensure these keys land on the same slot</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Pipeline</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">HSet</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.profile"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"name"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"Alice"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"role"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"engineer"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">SAdd</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.skills"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"go"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"redis"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"kafka"</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Expire</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.profile"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#005CC5;--1:#79B8FF">3600</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Expire</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.skills"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#005CC5;--1:#79B8FF">3600</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(ctx)</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#6F42C1;--1:#B392F0">panic</span><span style="--0:#24292E;--1:#E1E4E8">(err)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Multi-key operations work because both keys share the {user:42} hash tag</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">name, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">HGet</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.profile"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"name"</span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">skills, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">SMembers</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"{user:42}.skills"</span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Printf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"User: </span><span style="--0:#005CC5;--1:#79B8FF">%s</span><span style="--0:#032F62;--1:#9ECBFF">, Skills: </span><span style="--0:#005CC5;--1:#79B8FF">%v\n</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, name, skills)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="package mainimport (    &#x22;context&#x22;    &#x22;fmt&#x22;    &#x22;github.com/redis/go-redis/v9&#x22;)func main() {    ctx := context.Background()    rdb := redis.NewClusterClient(&#x26;redis.ClusterOptions{        Addrs: []string{            &#x22;redis-node-1:6379&#x22;,            &#x22;redis-node-2:6379&#x22;,            &#x22;redis-node-3:6379&#x22;,        },        // Route read commands to replicas for read scaling        RouteByLatency: true,        // Automatically follow MOVED/ASK redirections        // (go-redis does this by default)    })    defer rdb.Close()    // Hash tags ensure these keys land on the same slot    pipe := rdb.Pipeline()    pipe.HSet(ctx, &#x22;{user:42}.profile&#x22;, &#x22;name&#x22;, &#x22;Alice&#x22;, &#x22;role&#x22;, &#x22;engineer&#x22;)    pipe.SAdd(ctx, &#x22;{user:42}.skills&#x22;, &#x22;go&#x22;, &#x22;redis&#x22;, &#x22;kafka&#x22;)    pipe.Expire(ctx, &#x22;{user:42}.profile&#x22;, 3600)    pipe.Expire(ctx, &#x22;{user:42}.skills&#x22;, 3600)    _, err := pipe.Exec(ctx)    if err != nil {        panic(err)    }    // Multi-key operations work because both keys share the {user:42} hash tag    name, _ := rdb.HGet(ctx, &#x22;{user:42}.profile&#x22;, &#x22;name&#x22;).Result()    skills, _ := rdb.SMembers(ctx, &#x22;{user:42}.skills&#x22;).Result()    fmt.Printf(&#x22;User: %s, Skills: %v\n&#x22;, name, skills)}"><div></div></button></div></figure></div>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Redis Cluster’s asynchronous replication means it provides <strong>at-most-once delivery</strong> for writes during failover. If a master accepts a write, crashes before replicating it, and a replica gets promoted — that write is lost. This is a fundamental trade-off: Redis Cluster chooses <strong>availability and partition tolerance over consistency</strong> (AP in CAP terms). If you need strong consistency, you need Redis with Sentinel and <code dir="auto">WAIT</code> command, or a different system entirely. Know this trade-off cold for interviews.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="27-redis-write-strategies">2.7 Redis Write Strategies</h3><a class="sl-anchor-link" href="#27-redis-write-strategies"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “2.7 Redis Write Strategies”</span></a></div>
+<p>When using Redis as a cache in front of a database (like PostgreSQL), you need a strategy for keeping them in sync. There are three main patterns:</p>
+<pre class="mermaid">graph TB
+    subgraph "Write-Through"
+        WT_App[Application] -->|1. Write| WT_Cache[Redis Cache]
+        WT_Cache -->|2. Write| WT_DB[(PostgreSQL)]
+        WT_DB -->|3. Confirm| WT_Cache
+        WT_Cache -->|4. Confirm| WT_App
+    end
+
+    subgraph "Write-Behind / Write-Back"
+        WB_App[Application] -->|1. Write| WB_Cache[Redis Cache]
+        WB_Cache -->|2. Confirm immediately| WB_App
+        WB_Cache -.->|3. Async batch write| WB_DB[(PostgreSQL)]
+    end
+
+    subgraph "Write-Around / Cache-Aside"
+        WA_App[Application] -->|1. Write| WA_DB[(PostgreSQL)]
+        WA_DB -->|2. Confirm| WA_App
+        WA_App -.->|3. Invalidate| WA_Cache[Redis Cache]
+        WA_App -->|4. Read miss → populate| WA_Cache
+    end</pre>
+<p><em>Three write strategies for cache-database synchronization. Each makes a different trade-off between consistency, latency, and complexity.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Write-Through</th><th>Write-Behind</th><th>Write-Around</th></tr></thead><tbody><tr><td>Write latency</td><td>Higher (waits for DB)</td><td>Low (cache only)</td><td>Moderate (DB write)</td></tr><tr><td>Consistency</td><td>Strong</td><td>Eventual</td><td>Eventual (read miss)</td></tr><tr><td>Data loss risk</td><td>Low</td><td><strong>High</strong> (cache crash = lost writes)</td><td>Low</td></tr><tr><td>Read-after-write</td><td>Consistent</td><td>Consistent</td><td>May need cache invalidation</td></tr><tr><td>Complexity</td><td>Low</td><td>High (queue, retry, dedup)</td><td>Low</td></tr><tr><td><strong>Best for</strong></td><td>Financial data, user profiles</td><td>High-throughput analytics, logs</td><td>Read-heavy, infrequent updates</td></tr></tbody></table>
+<p><strong>My recommendation:</strong> For most applications, <strong>Write-Around</strong> (also called Cache-Aside) is the safest default. Write to your database, invalidate the cache, let the next read populate it. It’s simple, it’s safe, and it avoids the data loss risk of Write-Behind. Use Write-Through when you need guaranteed read-after-write consistency with cached reads. Only use Write-Behind when you can tolerate data loss and need maximum write throughput.</p>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The “Cache-Aside” pattern has a subtle race condition: Thread A reads from DB (gets old value), Thread B writes to DB and invalidates cache, Thread A writes old value to cache. Now the cache has stale data. The fix: use short TTLs on cache entries as a safety net, or use write-through with a cache lock. Facebook described this problem and their solutions in their famous <a href="https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala">Scaling Memcache at Facebook</a> paper. This exact scenario comes up in staff-level interviews.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="3-use-cases">3. Use Cases</h2><a class="sl-anchor-link" href="#3-use-cases"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “3. Use Cases”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="caching-the-bread-and-butter">Caching (The Bread and Butter)</h3><a class="sl-anchor-link" href="#caching-the-bread-and-butter"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Caching (The Bread and Butter)”</span></a></div>
+<p>The most common use case. Put frequently accessed data in Redis to avoid hitting your database.</p>
+<p><strong>Real-world example:</strong> GitHub caches repository metadata, user sessions, and feature flags in Redis. When you load a GitHub repo page, most of the data comes from Redis, not the database.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">GetUserProfile</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">rdb</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Client</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">db</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">sql</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">DB</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">userID</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">) (</span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">UserProfile</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#BF3441;--1:#F97583">error</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Try cache first</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">cached, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Get</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"user:"</span><span style="--0:#BF3441;--1:#F97583">+</span><span style="--0:#24292E;--1:#E1E4E8">userID).</span><span style="--0:#6F42C1;--1:#B392F0">Bytes</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">==</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#BF3441;--1:#F97583">var</span><span style="--0:#24292E;--1:#E1E4E8"> profile </span><span style="--0:#6F42C1;--1:#B392F0">UserProfile</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">        </span></span><span style="--0:#24292E;--1:#E1E4E8">json.</span><span style="--0:#6F42C1;--1:#B392F0">Unmarshal</span><span style="--0:#24292E;--1:#E1E4E8">(cached, </span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#24292E;--1:#E1E4E8">profile)</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">&#x26;</span><span style="--0:#24292E;--1:#E1E4E8">profile, </span><span style="--0:#005CC5;--1:#79B8FF">nil</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Cache miss — query database</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">profile, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">queryUserFromDB</span><span style="--0:#24292E;--1:#E1E4E8">(db, userID)</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8">, err</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#616972;--1:#99A0A6">// Populate cache with TTL</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">data, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> json.</span><span style="--0:#6F42C1;--1:#B392F0">Marshal</span><span style="--0:#24292E;--1:#E1E4E8">(profile)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Set</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"user:"</span><span style="--0:#BF3441;--1:#F97583">+</span><span style="--0:#24292E;--1:#E1E4E8">userID, data, </span><span style="--0:#005CC5;--1:#79B8FF">15</span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#24292E;--1:#E1E4E8">time.Minute)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> profile, </span><span style="--0:#005CC5;--1:#79B8FF">nil</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="func GetUserProfile(ctx context.Context, rdb *redis.Client, db *sql.DB, userID string) (*UserProfile, error) {    // Try cache first    cached, err := rdb.Get(ctx, &#x22;user:&#x22;+userID).Bytes()    if err == nil {        var profile UserProfile        json.Unmarshal(cached, &#x26;profile)        return &#x26;profile, nil    }    // Cache miss — query database    profile, err := queryUserFromDB(db, userID)    if err != nil {        return nil, err    }    // Populate cache with TTL    data, _ := json.Marshal(profile)    rdb.Set(ctx, &#x22;user:&#x22;+userID, data, 15*time.Minute)    return profile, nil}"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="rate-limiting">Rate Limiting</h3><a class="sl-anchor-link" href="#rate-limiting"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Rate Limiting”</span></a></div>
+<p>Redis’s atomic <code dir="auto">INCR</code> and <code dir="auto">EXPIRE</code> commands make it perfect for rate limiting.</p>
+<p><strong>Real-world example:</strong> Stripe uses Redis for API rate limiting across all their payment endpoints. Every API call increments a counter keyed by <code dir="auto">rate:{customer_id}:{minute}</code>.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">IsRateLimited</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">rdb</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Client</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">clientID</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">limit</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">int</span><span style="--0:#24292E;--1:#E1E4E8">) (</span><span style="--0:#BF3441;--1:#F97583">bool</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#BF3441;--1:#F97583">error</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">key </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> fmt.</span><span style="--0:#6F42C1;--1:#B392F0">Sprintf</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">"ratelimit:</span><span style="--0:#005CC5;--1:#79B8FF">%s</span><span style="--0:#032F62;--1:#9ECBFF">:</span><span style="--0:#005CC5;--1:#79B8FF">%d</span><span style="--0:#032F62;--1:#9ECBFF">"</span><span style="--0:#24292E;--1:#E1E4E8">, clientID, time.</span><span style="--0:#6F42C1;--1:#B392F0">Now</span><span style="--0:#24292E;--1:#E1E4E8">().</span><span style="--0:#6F42C1;--1:#B392F0">Unix</span><span style="--0:#24292E;--1:#E1E4E8">()</span><span style="--0:#BF3441;--1:#F97583">/</span><span style="--0:#005CC5;--1:#79B8FF">60</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">Pipeline</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">incr </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Incr</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, key)</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Expire</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, key, </span><span style="--0:#005CC5;--1:#79B8FF">2</span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#24292E;--1:#E1E4E8">time.Minute) </span><span style="--0:#616972;--1:#99A0A6">// TTL slightly longer than window</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> pipe.</span><span style="--0:#6F42C1;--1:#B392F0">Exec</span><span style="--0:#24292E;--1:#E1E4E8">(ctx)</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">false</span><span style="--0:#24292E;--1:#E1E4E8">, err</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> incr.</span><span style="--0:#6F42C1;--1:#B392F0">Val</span><span style="--0:#24292E;--1:#E1E4E8">() </span><span style="--0:#BF3441;--1:#F97583">></span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">int64</span><span style="--0:#24292E;--1:#E1E4E8">(limit), </span><span style="--0:#005CC5;--1:#79B8FF">nil</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="func IsRateLimited(ctx context.Context, rdb *redis.Client, clientID string, limit int) (bool, error) {    key := fmt.Sprintf(&#x22;ratelimit:%s:%d&#x22;, clientID, time.Now().Unix()/60)    pipe := rdb.Pipeline()    incr := pipe.Incr(ctx, key)    pipe.Expire(ctx, key, 2*time.Minute) // TTL slightly longer than window    _, err := pipe.Exec(ctx)    if err != nil {        return false, err    }    return incr.Val() > int64(limit), nil}"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="session-store">Session Store</h3><a class="sl-anchor-link" href="#session-store"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Session Store”</span></a></div>
+<p>HTTP sessions need fast reads on every request and automatic expiration.</p>
+<p><strong>Real-world example:</strong> Netflix stores user sessions in Redis across multiple regions. When you pause a show on your phone and resume on your TV, Redis serves the session data that tracks your progress.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="distributed-locks">Distributed Locks</h3><a class="sl-anchor-link" href="#distributed-locks"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Distributed Locks”</span></a></div>
+<p>Redis’s <code dir="auto">SET key value NX EX</code> (set-if-not-exists with expiry) provides a simple distributed lock mechanism.</p>
+<p><strong>Real-world example:</strong> Payment systems use Redis locks to prevent double-charging. When processing a payment, acquire a lock on the payment ID. If the lock exists, another instance is already processing it.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">AcquireLock</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">rdb</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Client</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">resource</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">ttl</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">time</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Duration</span><span style="--0:#24292E;--1:#E1E4E8">) (</span><span style="--0:#BF3441;--1:#F97583">bool</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#BF3441;--1:#F97583">error</span><span style="--0:#24292E;--1:#E1E4E8">) {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">lockKey </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#032F62;--1:#9ECBFF">"lock:"</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">+</span><span style="--0:#24292E;--1:#E1E4E8"> resource</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">lockValue </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> uuid.</span><span style="--0:#6F42C1;--1:#B392F0">New</span><span style="--0:#24292E;--1:#E1E4E8">().</span><span style="--0:#6F42C1;--1:#B392F0">String</span><span style="--0:#24292E;--1:#E1E4E8">() </span><span style="--0:#616972;--1:#99A0A6">// Unique value for safe release</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">ok, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">SetNX</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, lockKey, lockValue, ttl).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">if</span><span style="--0:#24292E;--1:#E1E4E8"> err </span><span style="--0:#BF3441;--1:#F97583">!=</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent">        </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#005CC5;--1:#79B8FF">false</span><span style="--0:#24292E;--1:#E1E4E8">, err</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> ok, </span><span style="--0:#005CC5;--1:#79B8FF">nil</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#616972;--1:#99A0A6">// true = lock acquired</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Use Lua script for safe release (check-and-delete atomically)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">var</span><span style="--0:#24292E;--1:#E1E4E8"> releaseLockScript </span><span style="--0:#BF3441;--1:#F97583">=</span><span style="--0:#24292E;--1:#E1E4E8"> redis.</span><span style="--0:#6F42C1;--1:#B392F0">NewScript</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#032F62;--1:#9ECBFF">`</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">if redis.call("GET", KEYS[1]) == ARGV[1] then</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">        </span></span><span style="--0:#032F62;--1:#9ECBFF">return redis.call("DEL", KEYS[1])</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">end</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#032F62;--1:#9ECBFF">    </span></span><span style="--0:#032F62;--1:#9ECBFF">return 0</span></div></div><div class="ec-line"><div class="code"><span style="--0:#032F62;--1:#9ECBFF">`</span><span style="--0:#24292E;--1:#E1E4E8">)</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#BF3441;--1:#F97583">func</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">ReleaseLock</span><span style="--0:#24292E;--1:#E1E4E8">(</span><span style="--0:#AE4B07;--1:#FFAB70">ctx</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#6F42C1;--1:#B392F0">context</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Context</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">rdb</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">*</span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Client</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">resource</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#AE4B07;--1:#FFAB70">lockValue</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">) </span><span style="--0:#BF3441;--1:#F97583">error</span><span style="--0:#24292E;--1:#E1E4E8"> {</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#24292E;--1:#E1E4E8">    </span></span><span style="--0:#24292E;--1:#E1E4E8">_, err </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> releaseLockScript.</span><span style="--0:#6F42C1;--1:#B392F0">Run</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, rdb, []</span><span style="--0:#BF3441;--1:#F97583">string</span><span style="--0:#24292E;--1:#E1E4E8">{</span><span style="--0:#032F62;--1:#9ECBFF">"lock:"</span><span style="--0:#24292E;--1:#E1E4E8"> </span><span style="--0:#BF3441;--1:#F97583">+</span><span style="--0:#24292E;--1:#E1E4E8"> resource}, lockValue).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span style="--0:#BF3441;--1:#F97583">return</span><span style="--0:#24292E;--1:#E1E4E8"> err</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">}</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="func AcquireLock(ctx context.Context, rdb *redis.Client, resource string, ttl time.Duration) (bool, error) {    lockKey := &#x22;lock:&#x22; + resource    lockValue := uuid.New().String() // Unique value for safe release    ok, err := rdb.SetNX(ctx, lockKey, lockValue, ttl).Result()    if err != nil {        return false, err    }    return ok, nil // true = lock acquired}// Use Lua script for safe release (check-and-delete atomically)var releaseLockScript = redis.NewScript(&#x60;    if redis.call(&#x22;GET&#x22;, KEYS[1]) == ARGV[1] then        return redis.call(&#x22;DEL&#x22;, KEYS[1])    end    return 0&#x60;)func ReleaseLock(ctx context.Context, rdb *redis.Client, resource, lockValue string) error {    _, err := releaseLockScript.Run(ctx, rdb, []string{&#x22;lock:&#x22; + resource}, lockValue).Result()    return err}"><div></div></button></div></figure></div>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Simple Redis locks (<code dir="auto">SETNX</code>) have a fundamental problem in distributed systems: if the lock holder crashes, the lock is held until TTL expires. For <strong>correct</strong> distributed locking, use the <a href="https://redis.io/docs/manual/patterns/distributed-locks/">Redlock algorithm</a> which acquires locks across multiple independent Redis instances. But even Redlock has been debated — Martin Kleppmann’s famous <a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">critique</a> argues it’s unsafe under certain clock drift scenarios. Know both sides of this debate for interviews.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="leaderboards">Leaderboards</h3><a class="sl-anchor-link" href="#leaderboards"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Leaderboards”</span></a></div>
+<p>Sorted Sets (<code dir="auto">ZADD</code>, <code dir="auto">ZRANGE</code>, <code dir="auto">ZRANK</code>) are purpose-built for leaderboards.</p>
+<p><strong>Real-world example:</strong> Twitter uses Redis Sorted Sets for trending topics. Each topic is a member with a score based on tweet velocity.</p>
+<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="go" dir="ltr"><code><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Add/update player score</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">rdb.</span><span style="--0:#6F42C1;--1:#B392F0">ZAdd</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"leaderboard:weekly"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#6F42C1;--1:#B392F0">redis</span><span style="--0:#24292E;--1:#E1E4E8">.</span><span style="--0:#6F42C1;--1:#B392F0">Z</span><span style="--0:#24292E;--1:#E1E4E8">{Score: </span><span style="--0:#005CC5;--1:#79B8FF">2500</span><span style="--0:#24292E;--1:#E1E4E8">, Member: </span><span style="--0:#032F62;--1:#9ECBFF">"player:alice"</span><span style="--0:#24292E;--1:#E1E4E8">})</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Get top 10 players</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">topPlayers, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">ZRevRangeWithScores</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"leaderboard:weekly"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#005CC5;--1:#79B8FF">0</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#005CC5;--1:#79B8FF">9</span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div><div class="ec-line"><div class="code">
+</div></div><div class="ec-line"><div class="code"><span style="--0:#616972;--1:#99A0A6">// Get a specific player's rank (0-indexed)</span></div></div><div class="ec-line"><div class="code"><span style="--0:#24292E;--1:#E1E4E8">rank, _ </span><span style="--0:#BF3441;--1:#F97583">:=</span><span style="--0:#24292E;--1:#E1E4E8"> rdb.</span><span style="--0:#6F42C1;--1:#B392F0">ZRevRank</span><span style="--0:#24292E;--1:#E1E4E8">(ctx, </span><span style="--0:#032F62;--1:#9ECBFF">"leaderboard:weekly"</span><span style="--0:#24292E;--1:#E1E4E8">, </span><span style="--0:#032F62;--1:#9ECBFF">"player:alice"</span><span style="--0:#24292E;--1:#E1E4E8">).</span><span style="--0:#6F42C1;--1:#B392F0">Result</span><span style="--0:#24292E;--1:#E1E4E8">()</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Add/update player scorerdb.ZAdd(ctx, &#x22;leaderboard:weekly&#x22;, redis.Z{Score: 2500, Member: &#x22;player:alice&#x22;})// Get top 10 playerstopPlayers, _ := rdb.ZRevRangeWithScores(ctx, &#x22;leaderboard:weekly&#x22;, 0, 9).Result()// Get a specific player&#x27;s rank (0-indexed)rank, _ := rdb.ZRevRank(ctx, &#x22;leaderboard:weekly&#x22;, &#x22;player:alice&#x22;).Result()"><div></div></button></div></figure></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="pubsub-and-event-streaming">Pub/Sub and Event Streaming</h3><a class="sl-anchor-link" href="#pubsub-and-event-streaming"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Pub/Sub and Event Streaming”</span></a></div>
+<p>Redis Pub/Sub provides fire-and-forget messaging. Redis Streams (5.0+) provide Kafka-like persistent event streaming with consumer groups.</p>
+<p><strong>When to use which:</strong></p>
+<ul>
+<li><strong>Pub/Sub</strong> — Real-time notifications where message loss is acceptable (chat, live updates)</li>
+<li><strong>Streams</strong> — When you need message persistence, replay, and consumer groups (lightweight event sourcing)</li>
+<li><strong>Kafka</strong> — When you need durable, high-throughput, multi-consumer event streaming at scale</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="4-gotchas">4. Gotchas</h2><a class="sl-anchor-link" href="#4-gotchas"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “4. Gotchas”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="what-happens-if-redis-crashes">What Happens If Redis Crashes?</h3><a class="sl-anchor-link" href="#what-happens-if-redis-crashes"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “What Happens If Redis Crashes?”</span></a></div>
+<p>This is the “2 AM production incident” section. Here’s what happens and what you should do.</p>
+<p><strong>Scenario 1: Redis crashes, RDB only</strong></p>
+<ul>
+<li>Data loss: Everything since the last snapshot (could be 5-15 minutes)</li>
+<li>Recovery: Redis loads the last <code dir="auto">.rdb</code> file on restart</li>
+<li>Recovery time: Fast — binary format loads quickly (seconds for GB-scale datasets)</li>
+</ul>
+<p><strong>Scenario 2: Redis crashes, AOF with <code dir="auto">everysec</code></strong></p>
+<ul>
+<li>Data loss: Up to ~1 second of writes</li>
+<li>Recovery: Redis replays the AOF file on restart</li>
+<li>Recovery time: Slower — depends on AOF size (can be minutes for large files)</li>
+</ul>
+<p><strong>Scenario 3: Redis Cluster, one master crashes</strong></p>
+<ul>
+<li>A replica detects the failure (after <code dir="auto">cluster-node-timeout</code>)</li>
+<li>Replica promotes itself to master</li>
+<li>Data loss: Any writes acknowledged by the old master but not yet replicated</li>
+<li>Client impact: Brief interruption (seconds) while failover completes</li>
+</ul>
+<pre class="mermaid">sequenceDiagram
+    participant C as Client
+    participant M as Master A
+    participant R as Replica A'
+    participant B as Master B (Cluster Peer)
+
+    Note over M: Master A crashes!
+    C->>M: SET key value
+    M--xC: Connection refused
+
+    Note over R,B: cluster-node-timeout expires (15s default)
+    B->>R: PFAIL → FAIL vote
+    R->>R: Start election
+    B->>R: Vote granted
+    R->>R: Promote to Master
+    R->>B: PONG (I'm the new master for slots X-Y)
+
+    C->>R: SET key value
+    R->>C: OK
+    Note over C,R: Clients re-discover cluster topology</pre>
+<p><em>Redis Cluster failover sequence: detection takes up to <code dir="auto">cluster-node-timeout</code>, then election and promotion happen within seconds.</em></p>
+<div class="sl-heading-wrapper level-h3"><h3 id="best-practices-to-keep-redis-fast">Best Practices to Keep Redis Fast</h3><a class="sl-anchor-link" href="#best-practices-to-keep-redis-fast"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Best Practices to Keep Redis Fast”</span></a></div>
+<ol>
+<li>
+<p><strong>Set TTLs on everything</strong> — Keys without TTL are memory leaks. Even “permanent” data should have a long TTL (e.g., 24 hours) with a refresh mechanism.</p>
+</li>
+<li>
+<p><strong>Use pipelining</strong> — Batch commands to reduce round trips. 100 pipelined commands are 50-100x faster than 100 individual commands.</p>
+</li>
+<li>
+<p><strong>Avoid large keys</strong> — Keep values under 100 KB. Large values block the event loop during serialization and network transfer.</p>
+</li>
+<li>
+<p><strong>Use <code dir="auto">SCAN</code> instead of <code dir="auto">KEYS</code></strong> — <code dir="auto">KEYS *</code> blocks Redis while it iterates the entire keyspace. <code dir="auto">SCAN</code> is cursor-based and non-blocking.</p>
+</li>
+<li>
+<p><strong>Monitor slow queries</strong> — Enable <code dir="auto">slowlog-log-slower-than 10000</code> (10ms). Check regularly with <code dir="auto">SLOWLOG GET 10</code>.</p>
+</li>
+<li>
+<p><strong>Size your memory correctly</strong> — Set <code dir="auto">maxmemory</code> and choose an eviction policy. Without <code dir="auto">maxmemory</code>, Redis will use all available RAM and get OOM-killed by the OS.</p>
+</li>
+<li>
+<p><strong>Use appropriate eviction policies:</strong></p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Policy</th><th>Behavior</th><th>Best For</th></tr></thead><tbody><tr><td><code dir="auto">allkeys-lru</code></td><td>Evict least recently used keys</td><td>General-purpose caching</td></tr><tr><td><code dir="auto">volatile-lru</code></td><td>Evict LRU keys with TTL only</td><td>Mix of cache + persistent data</td></tr><tr><td><code dir="auto">allkeys-lfu</code></td><td>Evict least frequently used</td><td>Workloads with hot keys</td></tr><tr><td><code dir="auto">noeviction</code></td><td>Return error on write when full</td><td>When data loss is unacceptable</td></tr></tbody></table>
+<ol start="8">
+<li><strong>Monitor these metrics:</strong>
+<ul>
+<li><code dir="auto">used_memory</code> vs <code dir="auto">maxmemory</code> — Are you close to the limit?</li>
+<li><code dir="auto">evicted_keys</code> — Are you losing data?</li>
+<li><code dir="auto">keyspace_misses / (keyspace_hits + keyspace_misses)</code> — Cache hit ratio (target >95%)</li>
+<li><code dir="auto">connected_clients</code> — Leak detection</li>
+<li><code dir="auto">latest_fork_usec</code> — <code dir="auto">fork()</code> duration for persistence</li>
+<li><code dir="auto">instantaneous_ops_per_sec</code> — Throughput baseline</li>
+</ul>
+</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="bad-practices-things-to-avoid">Bad Practices (Things to Avoid)</h3><a class="sl-anchor-link" href="#bad-practices-things-to-avoid"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Bad Practices (Things to Avoid)”</span></a></div>
+<ol>
+<li>
+<p><strong>Storing large objects</strong> — A 10 MB JSON blob in Redis blocks the event loop for the duration of the transfer. Break it into smaller keys or use hashes.</p>
+</li>
+<li>
+<p><strong>Using <code dir="auto">KEYS *</code> in production</strong> — This is a blocking O(N) operation. It will freeze your Redis instance. Use <code dir="auto">SCAN</code>.</p>
+</li>
+<li>
+<p><strong>Not setting <code dir="auto">maxmemory</code></strong> — Without it, Redis grows unbounded until the OS kills it. Always set <code dir="auto">maxmemory</code> and an eviction policy.</p>
+</li>
+<li>
+<p><strong>Using Redis as a primary database</strong> — Redis can persist data, but it’s not designed as a primary store. Replication is async, there are no transactions with rollback, and recovery from corruption is limited.</p>
+</li>
+<li>
+<p><strong>Hot keys</strong> — One key receiving 50% of all traffic creates a bottleneck. Even in a cluster, that key lives on one node. Solutions: read replicas, key sharding (split the hot key into <code dir="auto">hot-key:{0..N}</code> and distribute reads).</p>
+</li>
+<li>
+<p><strong>Lua scripts that run too long</strong> — Redis executes Lua scripts atomically (blocking). A script that takes 100ms blocks all other clients for 100ms. Keep Lua scripts short and simple.</p>
+</li>
+<li>
+<p><strong>Not using connection pooling</strong> — Creating a new TCP connection per request is expensive. Always use a connection pool (go-redis does this by default, but size it correctly).</p>
+</li>
+<li>
+<p><strong>Ignoring <code dir="auto">transparent_hugepage</code></strong> — Linux transparent huge pages cause latency spikes in Redis. Always disable them: <code dir="auto">echo never > /sys/kernel/mm/transparent_hugepage/enabled</code></p>
+</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> The #1 Redis incident I’ve seen in production: <strong>memory fragmentation</strong>. Redis’s <code dir="auto">mem_fragmentation_ratio</code> (from <code dir="auto">INFO memory</code>) should be between 1.0 and 1.5. Above 1.5 means significant fragmentation — Redis is using much more RSS than its logical dataset. The fix: enable <code dir="auto">activedefrag yes</code> (Redis 4.0+) or restart during a maintenance window. Below 1.0 means Redis is swapping to disk — this is an emergency. At 1000x scale, fragmentation monitoring is the difference between a stable cache layer and cascading failures.</p>
+</blockquote>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="5-where-to-use-and-where-not-to-use">5. Where to Use (and Where NOT to Use)</h2><a class="sl-anchor-link" href="#5-where-to-use-and-where-not-to-use"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “5. Where to Use (and Where NOT to Use)”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="use-redis-when">Use Redis When:</h3><a class="sl-anchor-link" href="#use-redis-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Use Redis When:”</span></a></div>
+<ul>
+<li>You need <strong>sub-millisecond latency</strong> for reads/writes</li>
+<li>Your dataset fits in <strong>memory</strong> (or you can shard across nodes)</li>
+<li>You need <strong>atomic operations</strong> (counters, rate limits, locks)</li>
+<li>You need <strong>ephemeral data</strong> with automatic expiration (sessions, caches)</li>
+<li>You need <strong>sorted sets, HyperLogLog, bitmaps,</strong> or other specialized structures</li>
+<li>You need a fast <strong>pub/sub</strong> layer for real-time features</li>
+</ul>
+<div class="sl-heading-wrapper level-h3"><h3 id="do-not-use-redis-when">Do NOT Use Redis When:</h3><a class="sl-anchor-link" href="#do-not-use-redis-when"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Do NOT Use Redis When:”</span></a></div>
+<ol>
+<li>
+<p><strong>Your dataset exceeds available RAM</strong> — If you have 500 GB of data and can’t afford 500 GB of RAM (across cluster nodes), Redis isn’t the right choice. Use PostgreSQL, DynamoDB, or a disk-based cache like Memcached with extstore.</p>
+</li>
+<li>
+<p><strong>You need complex queries</strong> — Redis has no <code dir="auto">JOIN</code>, no <code dir="auto">WHERE</code> clause, no aggregations. If you need <code dir="auto">SELECT users WHERE age > 25 AND country = 'US' ORDER BY signup_date</code>, use PostgreSQL.</p>
+</li>
+<li>
+<p><strong>You need strong consistency</strong> — Redis replication is async. During network partitions, you can have split-brain scenarios. If you need linearizable reads/writes, use PostgreSQL, etcd, or CockroachDB.</p>
+</li>
+<li>
+<p><strong>You need multi-key ACID transactions</strong> — Redis has <code dir="auto">MULTI/EXEC</code> which provides atomicity and isolation, but no rollback. If you need transaction rollback on failure, use a relational database.</p>
+</li>
+<li>
+<p><strong>You’re using it as a message queue for critical data</strong> — Redis Pub/Sub drops messages if no subscriber is listening. Redis Streams are better but still not as durable as Kafka. For critical event processing, use Kafka.</p>
+</li>
+<li>
+<p><strong>You need rich full-text search</strong> — Redis has RediSearch module, but Elasticsearch or PostgreSQL’s full-text search are more mature for this use case.</p>
+</li>
+<li>
+<p><strong>You’re storing relational data</strong> — If your data has complex relationships (users → orders → items → reviews), a relational database will serve you much better.</p>
+</li>
+</ol>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="6-versus-comparisons">6. Versus (Comparisons)</h2><a class="sl-anchor-link" href="#6-versus-comparisons"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “6. Versus (Comparisons)”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="redis-vs-dragonfly">Redis vs Dragonfly</h3><a class="sl-anchor-link" href="#redis-vs-dragonfly"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Redis vs Dragonfly”</span></a></div>
+<p>Dragonfly is a modern, multi-threaded, Redis-compatible in-memory datastore. It claims to be 25x faster than Redis with lower memory usage. Let’s cut through the marketing.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Redis</th><th>Dragonfly</th></tr></thead><tbody><tr><td><strong>Threading model</strong></td><td>Single-threaded (I/O threads in 6.0+)</td><td>Multi-threaded (shared-nothing architecture)</td></tr><tr><td><strong>Max throughput (single node)</strong></td><td>~200K ops/sec</td><td>~4M ops/sec (claimed)</td></tr><tr><td><strong>Memory efficiency</strong></td><td>~70 bytes overhead per key</td><td>~30 bytes overhead per key (dashtable)</td></tr><tr><td><strong>Clustering</strong></td><td>Redis Cluster (multi-node)</td><td>Single-node scales vertically</td></tr><tr><td><strong>Persistence</strong></td><td>RDB, AOF, Hybrid</td><td>RDB-compatible snapshots</td></tr><tr><td><strong>Module ecosystem</strong></td><td>Massive (RediSearch, RedisJSON, etc.)</td><td>Limited (growing)</td></tr><tr><td><strong>Maturity</strong></td><td>15+ years, battle-tested at Google/Netflix/Twitter</td><td>~3 years, smaller production footprint</td></tr><tr><td><strong>Protocol compatibility</strong></td><td>N/A (it IS the protocol)</td><td>~95% Redis-compatible</td></tr><tr><td><strong>Lua scripting</strong></td><td>Full support</td><td>Supported</td></tr><tr><td><strong>Cloud managed service</strong></td><td>AWS ElastiCache, Redis Cloud, Azure Cache</td><td>Dragonfly Cloud (newer)</td></tr><tr><td><strong>License</strong></td><td>SSPL (since 2024, was BSD)</td><td>BSL 1.1</td></tr><tr><td><strong>Community &#x26; support</strong></td><td>Enormous</td><td>Growing, smaller</td></tr></tbody></table>
+<p><strong>Choose Redis when:</strong></p>
+<ul>
+<li>You need the <strong>module ecosystem</strong> (RediSearch, RedisJSON, RedisTimeSeries)</li>
+<li>You need <strong>battle-tested production reliability</strong> with years of operational knowledge</li>
+<li>You’re using <strong>managed services</strong> (ElastiCache, Redis Cloud)</li>
+<li>Your team has <strong>existing Redis expertise</strong></li>
+<li>You need <strong>Redis Cluster</strong> for horizontal sharding</li>
+</ul>
+<p><strong>Choose Dragonfly when:</strong></p>
+<ul>
+<li>You need <strong>maximum throughput on a single node</strong> and want to avoid cluster complexity</li>
+<li><strong>Memory cost</strong> is a significant concern (Dragonfly uses ~50% less memory per key)</li>
+<li>You’re running on a <strong>large multi-core machine</strong> and want to use all cores</li>
+<li>You’re OK with a <strong>newer, less battle-tested</strong> system</li>
+<li>Your usage is limited to <strong>core Redis commands</strong> (no specialized modules)</li>
+</ul>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> Dragonfly’s architecture is genuinely interesting — it uses a shared-nothing design where each thread owns a slice of the data (like ScyllaDB’s approach to Cassandra). No locks needed because threads never touch each other’s data. But here’s the nuance: in many real-world workloads, the bottleneck is the <strong>network</strong> or the <strong>application logic</strong>, not Redis throughput. Switching from Redis to Dragonfly solves a problem most teams don’t actually have. Profile your actual bottleneck before making the switch.</p>
+</blockquote>
+<div class="sl-heading-wrapper level-h3"><h3 id="redis-vs-postgresql">Redis vs PostgreSQL</h3><a class="sl-anchor-link" href="#redis-vs-postgresql"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Redis vs PostgreSQL”</span></a></div>
+<p>This comparison is less obvious but comes up frequently in design discussions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Aspect</th><th>Redis</th><th>PostgreSQL</th></tr></thead><tbody><tr><td><strong>Data model</strong></td><td>Key-value with rich structures</td><td>Relational (tables, rows, columns)</td></tr><tr><td><strong>Query language</strong></td><td>Commands (GET, SET, ZADD)</td><td>SQL (full query language)</td></tr><tr><td><strong>Latency (p50)</strong></td><td>~0.1ms</td><td>~1-5ms (indexed queries)</td></tr><tr><td><strong>Throughput</strong></td><td>100K-200K ops/sec per node</td><td>10K-50K queries/sec per node</td></tr><tr><td><strong>Storage</strong></td><td>RAM (with disk persistence)</td><td>Disk (with RAM cache)</td></tr><tr><td><strong>ACID transactions</strong></td><td>Limited (MULTI/EXEC, no rollback)</td><td>Full ACID</td></tr><tr><td><strong>Consistency</strong></td><td>Eventual (async replication)</td><td>Strong (synchronous replication available)</td></tr><tr><td><strong>JOIN support</strong></td><td>None</td><td>Full</td></tr><tr><td><strong>Data durability</strong></td><td>Configurable (risk of loss)</td><td>Durable by default (WAL)</td></tr><tr><td><strong>Schema</strong></td><td>Schema-less</td><td>Schema-enforced</td></tr><tr><td><strong>Horizontal scaling</strong></td><td>Redis Cluster (automatic)</td><td>Manual sharding, Citus, or read replicas</td></tr><tr><td><strong>Cost at scale</strong></td><td>Expensive (RAM)</td><td>Cheaper (disk)</td></tr></tbody></table>
+<p><strong>Choose Redis when:</strong></p>
+<ul>
+<li>You need <strong>sub-millisecond responses</strong> for reads</li>
+<li>Your data is <strong>simple key-value</strong> or fits Redis structures (sorted sets, hashes)</li>
+<li>You need <strong>ephemeral data</strong> (caches, sessions, rate counters)</li>
+<li>You need <strong>atomic counters</strong> or <strong>distributed locks</strong></li>
+</ul>
+<p><strong>Choose PostgreSQL when:</strong></p>
+<ul>
+<li>You need <strong>complex queries</strong> (joins, aggregations, filtering)</li>
+<li>You need <strong>strong consistency</strong> and ACID guarantees</li>
+<li>Your <strong>dataset is larger than available RAM</strong></li>
+<li>You need <strong>schema enforcement</strong> and data integrity</li>
+<li>You need <strong>audit trails</strong> and <strong>transaction rollback</strong></li>
+</ul>
+<p><strong>The most common architecture:</strong> Use both. PostgreSQL as the source of truth, Redis as a read cache in front of it.</p>
+<pre class="mermaid">graph LR
+    App[Application] -->|Write| PG[(PostgreSQL&#x3C;br/>Source of Truth)]
+    App -->|Read| Redis[Redis Cache]
+    Redis -.->|Cache Miss| PG
+    PG -.->|Invalidation via&#x3C;br/>pg_notify or CDC| Redis</pre>
+<p><em>The standard architecture: PostgreSQL for durability and complex queries, Redis for speed. Invalidation can be event-driven via PostgreSQL notifications or Change Data Capture.</em></p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="7-references">7. References</h2><a class="sl-anchor-link" href="#7-references"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “7. References”</span></a></div>
+<p><strong>Official Documentation:</strong></p>
+<ul>
+<li><a href="https://redis.io/docs/">Redis Documentation</a> — Start here. The official docs are excellent.</li>
+<li><a href="https://redis.io/commands/">Redis Commands Reference</a> — Every command with complexity analysis</li>
+<li><a href="https://redis.io/docs/reference/cluster-spec/">Redis Cluster Specification</a> — Deep technical specification</li>
+</ul>
+<p><strong>Engineering Blogs:</strong></p>
+<ul>
+<li><a href="https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala">Scaling Memcache at Facebook (NSDI ‘13)</a> — The definitive paper on caching at scale (applies to Redis too)</li>
+<li><a href="https://blog.twitter.com/engineering/en_us/topics/infrastructure/2014/building-a-complete-tweet-index">How Twitter Uses Redis</a> — Tweet indexing and timeline caching</li>
+<li><a href="https://netflixtechblog.com/application-data-caching-using-ssds-5bf25df851ef">Netflix: Application Data Caching using SSDs</a> — When RAM-only caching isn’t enough</li>
+<li><a href="https://stripe.com/blog/rate-limiters">Stripe: Rate Limiting</a> — How Stripe built rate limiting with Redis</li>
+</ul>
+<p><strong>Key Papers &#x26; Posts:</strong></p>
+<ul>
+<li><a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Martin Kleppmann: How to do distributed locking</a> — The famous critique of Redlock</li>
+<li><a href="http://antirez.com/news/101">Antirez: Is Redlock safe?</a> — Salvatore Sanfilippo’s response</li>
+</ul>
+<p><strong>Conference Talks:</strong></p>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=xuFCi7HYsCA">Redis Cluster Deep Dive — Salvatore Sanfilippo (RedisConf)</a> — From the creator of Redis</li>
+<li><a href="https://www.youtube.com/watch?v=GEl52XEoMN4">Redis Internals — RailsConf</a> — Excellent walkthrough of Redis internals</li>
+</ul>
+<p><strong>Books:</strong></p>
+<ul>
+<li><em>Redis in Action</em> by Josiah Carlson — Practical patterns and use cases</li>
+<li><em>Designing Data-Intensive Applications</em> by Martin Kleppmann — Chapter 5 (Replication) and Chapter 6 (Partitioning) directly apply to Redis</li>
+</ul>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="8-interview-questions">8. Interview Questions</h2><a class="sl-anchor-link" href="#8-interview-questions"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “8. Interview Questions”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="q1-design-a-rate-limiter-using-redis-how-would-you-handle-a-distributed-system-with-multiple-application-servers">Q1: “Design a rate limiter using Redis. How would you handle a distributed system with multiple application servers?”</h3><a class="sl-anchor-link" href="#q1-design-a-rate-limiter-using-redis-how-would-you-handle-a-distributed-system-with-multiple-application-servers"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q1: “Design a rate limiter using Redis. How would you handle a distributed system with multiple application servers?””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>Sliding window vs fixed window algorithm</li>
+<li><code dir="auto">INCR</code> + <code dir="auto">EXPIRE</code> for fixed window (simple but bursty at window boundaries)</li>
+<li>Sorted set with timestamps for sliding window (more accurate, more memory)</li>
+<li>Race conditions between <code dir="auto">INCR</code> and <code dir="auto">EXPIRE</code> — use <code dir="auto">pipelining</code> or Lua scripts for atomicity</li>
+<li>What happens if Redis goes down? (Fail open or fail closed — discuss trade-offs)</li>
+<li>At scale: use local in-memory counters with periodic sync to Redis to reduce load</li>
+</ul>
+<p><strong>Common mistakes:</strong> Not handling the race condition between INCR and EXPIRE. Not discussing what happens when Redis is unavailable. Overcomplicating with distributed algorithms when a simple pipeline suffices.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="q2-youre-seeing-p99-latency-spikes-in-redis-every-5-minutes-how-do-you-diagnose-and-fix-this">Q2: “You’re seeing p99 latency spikes in Redis every 5 minutes. How do you diagnose and fix this?”</h3><a class="sl-anchor-link" href="#q2-youre-seeing-p99-latency-spikes-in-redis-every-5-minutes-how-do-you-diagnose-and-fix-this"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q2: “You’re seeing p99 latency spikes in Redis every 5 minutes. How do you diagnose and fix this?””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>RDB <code dir="auto">BGSAVE</code> every 5 minutes → <code dir="auto">fork()</code> latency spike. Check <code dir="auto">latest_fork_usec</code></li>
+<li>Solution: switch to AOF-only or stagger persistence schedules</li>
+<li>Other causes: <code dir="auto">KEYS</code> or other O(N) commands in slow log, client-side timeouts, network issues</li>
+<li>Check <code dir="auto">SLOWLOG GET</code>, <code dir="auto">INFO memory</code> (fragmentation), <code dir="auto">INFO persistence</code></li>
+<li>Transparent huge pages on Linux causing latency</li>
+<li>AOF rewrite happening simultaneously</li>
+</ul>
+<p><strong>Common mistakes:</strong> Jumping to “add more Redis nodes” without diagnosing the root cause. Not knowing about <code dir="auto">fork()</code> overhead. Not checking <code dir="auto">SLOWLOG</code>.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="q3-how-would-you-design-redis-cluster-for-a-write-heavy-workload-with-500k-writessec">Q3: “How would you design Redis Cluster for a write-heavy workload with 500K writes/sec?”</h3><a class="sl-anchor-link" href="#q3-how-would-you-design-redis-cluster-for-a-write-heavy-workload-with-500k-writessec"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q3: “How would you design Redis Cluster for a write-heavy workload with 500K writes/sec?””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>With ~200K ops/sec per node, you need at least 3-4 masters (with headroom)</li>
+<li>Hash slot distribution across nodes</li>
+<li>Hash tags for multi-key operations (and when they cause hot spots)</li>
+<li>Replication factor (at least 1 replica per master for HA)</li>
+<li>Write amplification from replication</li>
+<li>Consider Dragonfly if the workload fits a single large node</li>
+<li>Pipeline commands for throughput — pipeline size matters</li>
+</ul>
+<p><strong>Common mistakes:</strong> Not calculating the actual node count needed. Forgetting about replication overhead. Not considering the <code dir="auto">cluster-node-timeout</code> impact on failover time.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="q4-your-application-uses-redis-as-a-cache-in-front-of-postgresql-describe-the-failure-modes-and-how-youd-handle-a-cache-stampede">Q4: “Your application uses Redis as a cache in front of PostgreSQL. Describe the failure modes and how you’d handle a cache stampede.”</h3><a class="sl-anchor-link" href="#q4-your-application-uses-redis-as-a-cache-in-front-of-postgresql-describe-the-failure-modes-and-how-youd-handle-a-cache-stampede"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q4: “Your application uses Redis as a cache in front of PostgreSQL. Describe the failure modes and how you’d handle a cache stampede.””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li><strong>Cache stampede/thundering herd</strong>: A hot key expires → 1000 threads simultaneously query the database</li>
+<li>Solutions: mutex/lock per key, stagger TTLs with jitter, background refresh before expiry</li>
+<li><strong>Cache penetration</strong>: Non-existent keys bypass cache → DB takes all traffic. Solution: cache null results with short TTL, use bloom filter</li>
+<li><strong>Cache avalanche</strong>: Many keys expire simultaneously. Solution: add random jitter to TTLs</li>
+<li>What happens when Redis goes down entirely? Circuit breaker pattern, graceful degradation</li>
+</ul>
+<p><strong>Common mistakes:</strong> Only discussing cache miss, not cache stampede. Not distinguishing between stampede, penetration, and avalanche. Not having a plan for total Redis failure.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="q5-explain-the-trade-offs-between-redis-persistence-options-when-would-you-choose-each">Q5: “Explain the trade-offs between Redis persistence options. When would you choose each?”</h3><a class="sl-anchor-link" href="#q5-explain-the-trade-offs-between-redis-persistence-options-when-would-you-choose-each"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q5: “Explain the trade-offs between Redis persistence options. When would you choose each?””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>RDB: fast recovery, potential data loss, <code dir="auto">fork()</code> overhead</li>
+<li>AOF: minimal data loss, slower recovery, continuous disk I/O</li>
+<li>Hybrid: best of both worlds for production</li>
+<li><code dir="auto">appendfsync always</code> vs <code dir="auto">everysec</code> vs <code dir="auto">no</code> — when each makes sense</li>
+<li>Impact of persistence on memory (<code dir="auto">fork()</code> + copy-on-write)</li>
+<li>For pure caching with a durable primary database: you might disable persistence entirely</li>
+</ul>
+<p><strong>Common mistakes:</strong> Not explaining the <code dir="auto">fork()</code>/CoW mechanism. Not calculating memory overhead during persistence. Saying “just use AOF” without considering recovery time.</p>
+<div class="sl-heading-wrapper level-h3"><h3 id="q6-you-need-a-distributed-lock-across-5-microservices-would-you-use-redis-how-would-you-implement-it">Q6: “You need a distributed lock across 5 microservices. Would you use Redis? How would you implement it?”</h3><a class="sl-anchor-link" href="#q6-you-need-a-distributed-lock-across-5-microservices-would-you-use-redis-how-would-you-implement-it"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Q6: “You need a distributed lock across 5 microservices. Would you use Redis? How would you implement it?””</span></a></div>
+<p><strong>Key points to cover:</strong></p>
+<ul>
+<li>Simple <code dir="auto">SETNX</code> with TTL for basic cases</li>
+<li>Redlock algorithm for stronger guarantees (N/2+1 independent Redis instances)</li>
+<li>Martin Kleppmann’s critique: clock drift can cause unsafe behavior</li>
+<li>Fencing tokens for correctness</li>
+<li>When to use Redis locks vs etcd/ZooKeeper — Redis is faster but less safe; etcd uses Raft for consensus</li>
+<li>Always set reasonable TTLs and handle lock renewal for long operations</li>
+</ul>
+<p><strong>Common mistakes:</strong> Using <code dir="auto">SETNX</code> without a unique value (unsafe release). Not handling lock extension for long-running operations. Not knowing the Redlock debate.</p>
+<hr>
+<div class="sl-heading-wrapper level-h2"><h2 id="9-staff-level-preparation-tips">9. Staff-Level Preparation Tips</h2><a class="sl-anchor-link" href="#9-staff-level-preparation-tips"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “9. Staff-Level Preparation Tips”</span></a></div>
+<div class="sl-heading-wrapper level-h3"><h3 id="what-to-study-deeper">What to Study Deeper</h3><a class="sl-anchor-link" href="#what-to-study-deeper"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “What to Study Deeper”</span></a></div>
+<ol>
+<li><strong>Read the Redis source code</strong> — Start with <code dir="auto">server.c</code> (the event loop) and <code dir="auto">t_zset.c</code> (skip list implementation). It’s clean C code and surprisingly readable.</li>
+<li><strong>Understand <code dir="auto">epoll</code> and <code dir="auto">kqueue</code></strong> — These are the foundations of Redis’s performance. Read the Linux <code dir="auto">epoll(7)</code> man page.</li>
+<li><strong>Study the Raft consensus protocol</strong> — While Redis uses gossip (not Raft), understanding Raft helps you articulate why Redis Cluster makes different trade-offs.</li>
+<li><strong>Read “Scaling Memcache at Facebook”</strong> — The definitive paper on operating a cache tier at massive scale.</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="what-to-build">What to Build</h3><a class="sl-anchor-link" href="#what-to-build"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “What to Build”</span></a></div>
+<ol>
+<li><strong>Build a mini Redis in Go</strong> — Implement GET, SET, EXPIRE, and the event loop with <code dir="auto">net</code> package. You’ll understand the internals deeply.</li>
+<li><strong>Set up a 3-node Redis Cluster locally</strong> — Practice failover, observe gossip, trigger <code dir="auto">MOVED</code> redirections.</li>
+<li><strong>Implement rate limiting</strong> — Build both fixed-window and sliding-window rate limiters in Go + Redis. Benchmark them.</li>
+<li><strong>Simulate a cache stampede</strong> — Write a Go program that expires a hot key and spawns 1000 concurrent requests. Implement the mutex solution and compare.</li>
+</ol>
+<div class="sl-heading-wrapper level-h3"><h3 id="how-to-demonstrate-staff-level-thinking-in-interviews">How to Demonstrate Staff-Level Thinking in Interviews</h3><a class="sl-anchor-link" href="#how-to-demonstrate-staff-level-thinking-in-interviews"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “How to Demonstrate Staff-Level Thinking in Interviews”</span></a></div>
+<ol>
+<li>
+<p><strong>Always state trade-offs</strong> — Never say “use Redis for caching.” Say “Redis gives us sub-millisecond reads, but we’re trading durability and consistency. Here’s how we handle cache failures…”</p>
+</li>
+<li>
+<p><strong>Address failure modes proactively</strong> — Before the interviewer asks “what if Redis goes down?”, volunteer: “Let me walk through the failure scenarios…”</p>
+</li>
+<li>
+<p><strong>Connect to the broader system</strong> — Don’t discuss Redis in isolation. Show how it fits with Kafka (for events), PostgreSQL (for durability), and Kubernetes (for deployment).</p>
+</li>
+<li>
+<p><strong>Quantify</strong> — Don’t say “Redis is fast.” Say “A single Redis node handles 200K ops/sec at sub-millisecond p50 latency. For our estimated 50K reads/sec, one node with a replica gives us 4x headroom.”</p>
+</li>
+<li>
+<p><strong>Show operational maturity</strong> — Mention monitoring (<code dir="auto">INFO</code> stats, slow log), alerting (memory usage, eviction rate, hit ratio), and runbooks (what to do when Redis memory hits 90%, when replication lag increases).</p>
+</li>
+</ol>
+<blockquote>
+<p>💡 <strong>Staff-level insight:</strong> In design interviews, the most impressive candidates don’t just use Redis — they explain <strong>when they’d remove Redis</strong>. “If our dataset is small enough and read latency from PostgreSQL is under 5ms, adding Redis adds operational complexity without meaningful benefit. I’d only introduce Redis when we see p99 latency exceed our SLO, and I’d instrument the caching layer from day one so we can prove its value.” That’s the kind of judgment that separates staff from senior.</p>
+</blockquote> </div> <footer class="sl-flex astro-3yyafb3n"> <div class="meta sl-flex astro-3yyafb3n">  <p>Last updated: <time datetime="2026-05-06T10:56:12.000Z">May 6, 2026</time></p> </div> <div class="pagination-links print:hidden astro-u2l5gyhi" dir="ltr"> <a href="/notes/distributed-systems/advanced-database-selection-and-staff-engineering-interview-guide/" rel="prev" class="astro-u2l5gyhi"> <svg aria-hidden="true" class="astro-u2l5gyhi astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17 11H9.41l3.3-3.29a1.004 1.004 0 1 0-1.42-1.42l-5 5a1 1 0 0 0-.21.33 1 1 0 0 0 0 .76 1 1 0 0 0 .21.33l5 5a1.002 1.002 0 0 0 1.639-.325 1 1 0 0 0-.219-1.095L9.41 13H17a1 1 0 0 0 0-2Z"/></svg> <span class="astro-u2l5gyhi"> Previous <br class="astro-u2l5gyhi"> <span class="link-title astro-u2l5gyhi">Advanced Database Selection and Staff Engineering Interview Guide</span> </span> </a> <a href="/notes/distributed-systems/rate-limiting-algorithms-and-strategies/" rel="next" class="astro-u2l5gyhi"> <svg aria-hidden="true" class="astro-u2l5gyhi astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.5rem;"><path d="M17.92 11.62a1.001 1.001 0 0 0-.21-.33l-5-5a1.003 1.003 0 1 0-1.42 1.42l3.3 3.29H7a1 1 0 0 0 0 2h7.59l-3.3 3.29a1.002 1.002 0 0 0 .325 1.639 1 1 0 0 0 1.095-.219l5-5a1 1 0 0 0 .21-.33 1 1 0 0 0 0-.76Z"/></svg> <span class="astro-u2l5gyhi"> Next <br class="astro-u2l5gyhi"> <span class="link-title astro-u2l5gyhi">Rate Limiting: Algorithms, Trade-offs, and Production Strategies</span> </span> </a> </div>  </footer> </div> </div>  </main> </div> </div> </div> </div> </body></html>
