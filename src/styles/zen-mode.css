@@ -13,8 +13,12 @@ aside,
 }
 
 /* Hide right TOC in zen mode */
-[data-zen-mode="true"] .right-sidebar {
-  display: none;
+[data-zen-mode="true"] .right-sidebar,
+[data-zen-mode="true"] .right-sidebar-container,
+[data-zen-mode="true"] starlight-toc,
+[data-zen-mode="true"] mobile-starlight-toc,
+[data-zen-mode="true"] .page-sidebar {
+  display: none !important;
 }
 
 /* Expand content to full viewport width in zen mode */

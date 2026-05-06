@@ -27,14 +27,17 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Design Patterns',
-					autogenerate: { directory: 'design-patterns' },
+					collapsed: true,
+					autogenerate: { directory: 'design-patterns', collapsed: true },
 				},
 				{
 					label: 'Distributed Systems',
-					autogenerate: { directory: 'distributed-systems' },
+					collapsed: true,
+					autogenerate: { directory: 'distributed-systems', collapsed: true },
 				},
 				{
 					label: 'Notes',
+					collapsed: true,
 					autogenerate: { directory: 'notes' },
 				},
 			],
@@ -42,6 +45,7 @@ export default defineConfig({
 			plugins: [starlightViewModes()],
 			components: {
 				Header: './src/components/header/ZenModeHeader.astro',
+				Sidebar: './src/components/sidebar/CustomSidebar.astro',
 			},
 		}),
 	],

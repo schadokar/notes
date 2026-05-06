@@ -10,6 +10,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const vaultPath = process.env.VAULT_PATH || path.join(os.homedir(), 'work/obsidian/upskill/raw/research');
 const docsDir = path.join(__dirname, '../src/content/docs');
 
+// Files to skip during sync (by filename)
+const skipFiles = new Set(['CLAUDE.md']);
+
 // Series slug mapping
 const seriesSlugMap = {
 	'Design Patterns Deep Dive': 'design-patterns',
@@ -112,6 +115,13 @@ function sync() {
 	for (const filePath of files) {
 		const content = fs.readFileSync(filePath, 'utf-8');
 		const { data, content: body } = matter(content);
+
+		// Skip listed files
+		if (skipFiles.has(path.basename(filePath))) {
+			skipped++;
+			console.log(`⊘ SKIP (excluded): ${path.basename(filePath)}`);
+			continue;
+		}
 
 		// Skip draft files
 		if (data.draft === true) {

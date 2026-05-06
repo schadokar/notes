@@ -3,13 +3,17 @@ title: Welcome
 description: A minimal, content-first blog.
 template: splash
 hero:
-  tagline: Ideas on software, systems, and design
+  tagline: Staff-engineer deep-dives on software, systems, and architecture
   image:
     file: ../../assets/houston.webp
   actions:
-    - text: Explore
-      link: /design-patterns/
+    - text: Start with Architecture
+      link: /notes/
       icon: right-arrow
+    - text: Design Patterns
+      link: /design-patterns/
+      icon: puzzle
+      variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
@@ -18,12 +22,121 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 <CardGrid stagger>
 	<Card title="Design Patterns" icon="puzzle">
-		<a href="/design-patterns/">Reusable solutions to common problems in software design.</a>
+		<a href="/design-patterns/">GoF and distributed tactical patterns — patterns that shape *code*.</a>
 	</Card>
 	<Card title="Distributed Systems" icon="seti:terraform">
-		<a href="/distributed-systems/">Building reliable systems across multiple machines.</a>
+		<a href="/distributed-systems/">CAP, consensus, replication, and reliability across machines.</a>
 	</Card>
-	<Card title="Notes" icon="pencil">
-		<a href="/notes/">Thoughts, learnings, and technical observations.</a>
+	<Card title="Architecture Notes" icon="pencil">
+		<a href="/notes/">System-level patterns — application, integration, data, deployment, org topology. Patterns that shape *systems*.</a>
 	</Card>
 </CardGrid>
+
+## The Staff-Level Roadmap
+
+A 5-phase journey from tactical code patterns to org-shaped architecture.
+
+```mermaid
+flowchart LR
+    Start([🧭 You are here]) --> P1
+    subgraph P1[Phase 1 · Foundations]
+        direction TB
+        L[Layered] --> H[Hexagonal] --> M[Modular Monolith]
+    end
+    P1 --> P2
+    subgraph P2[Phase 2 · Integration]
+        direction TB
+        MS[Microservices] --> EDA[Event-Driven] --> GW[API Gateway / BFF]
+    end
+    P2 --> P3
+    subgraph P3[Phase 3 · Data]
+        direction TB
+        DPS[DB-per-service] --> CQRS[CQRS] --> ES[Event Sourcing] --> SH[Sharding]
+    end
+    P3 --> P4
+    subgraph P4[Phase 4 · Deployment]
+        direction TB
+        SL[Serverless] --> CB[Cell-based] --> MR[Multi-region]
+    end
+    P4 --> P5
+    subgraph P5[Phase 5 · Organizational]
+        direction TB
+        TT[Team Topologies] --> CON[Inverse Conway] --> PE[Platform Eng]
+    end
+    P5 --> Goal([🎯 Staff-level breadth])
+
+    classDef phase fill:#0d1117,stroke:#30363d,color:#c9d1d9;
+    classDef milestone fill:#1f6feb,stroke:#1f6feb,color:#fff;
+    class Start,Goal milestone;
+```
+
+## The Decision Map
+
+Where each pattern *family* lives in the system.
+
+```mermaid
+mindmap
+  root((Architecture))
+    Code shape
+      Design Patterns
+        GoF
+        Distributed
+      Application
+        Layered
+        Hexagonal
+        Modular Monolith
+    System shape
+      Integration
+        Microservices
+        Event-Driven
+        API Gateway
+        Service Mesh
+      Data
+        DB-per-service
+        CQRS
+        Event Sourcing
+        Multi-tenancy
+    Runtime shape
+      Deployment
+        Serverless
+        Cell-based
+        Multi-region
+        Blue/Green · Canary
+    Team shape
+      Organizational
+        Team Topologies
+        Inverse Conway
+        Platform Engineering
+        DDD · Bounded Context
+```
+
+## Reading Paths
+
+Pick the trail that matches your goal.
+
+```mermaid
+journey
+    title Your route through the notes
+    section Interview Prep
+      Foundations: 5: You
+      Integration: 4: You
+      Data patterns: 4: You
+      Mock design round: 3: You
+    section Real Decision
+      Mono-vs-micro framework: 5: You
+      Specific pattern doc: 5: You
+      Gotchas + Versus: 4: You
+    section Curiosity
+      Pick any node: 5: You
+      Follow cross-links: 5: You
+```
+
+## How to Read
+
+- **Going deep on one topic?** Jump straight to the file you need; cross-links sit at the bottom of each note.
+- **Prepping for a Staff system-design interview?** Start in [Architecture Notes](/notes/) — Phase 1 (Foundations) → Phase 2 (Integration) → Phase 3 (Data).
+- **Making a real architectural decision?** Head to the monolith-vs-microservices decision framework, then drill into the specific pattern.
+
+## Style
+
+Each pattern doc follows the same shape: Overview → Core Concepts → Use Cases → Gotchas → Where to Use / NOT Use → Versus → References → Interview Questions → Staff-Level Prep.
